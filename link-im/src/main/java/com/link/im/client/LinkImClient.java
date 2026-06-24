@@ -1,15 +1,13 @@
-package com.link.im.core.client;
+package com.link.im.client;
 
 import com.google.gson.Gson;
-import com.link.core.client.handler.LinkClientInitializer;
+import com.link.common.core.model.heart.LinkPing;
+
 import com.link.core.config.LinkCoreConfig;
 import com.link.common.core.event.EventType;
-import com.link.core.model.data.PackData;
-import com.link.core.model.heart.LinkPing;
+import com.link.common.core.model.data.PackData;
 
-import com.link.im.entity.data.TextData;
-import com.link.im.entity.message.DefaultMessageInfo;
-import com.link.im.entity.message.type.MessageType;
+import com.link.im.client.handler.LinkClientInitializer;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;

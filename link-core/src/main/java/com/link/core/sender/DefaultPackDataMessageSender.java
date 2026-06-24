@@ -2,7 +2,7 @@ package com.link.core.sender;
 
 import com.link.core.config.LinkCoreConfig;
 import com.link.common.core.event.EventType;
-import com.link.core.model.data.PackData;
+import com.link.common.core.model.data.PackData;
 import io.netty.channel.Channel;
 import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;

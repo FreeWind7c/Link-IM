@@ -1,4 +1,4 @@
-package com.link.core.client.handler;
+package com.link.im.client.handler;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;

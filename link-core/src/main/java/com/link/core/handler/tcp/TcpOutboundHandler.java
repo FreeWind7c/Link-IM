@@ -1,7 +1,7 @@
 package com.link.core.handler.tcp;
 
 import com.link.core.codec.LinkPackDataEncoder;
-import com.link.core.model.data.PackData;
+import com.link.common.core.model.data.PackData;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;

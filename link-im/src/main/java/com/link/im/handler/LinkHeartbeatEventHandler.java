@@ -1,11 +1,12 @@
 package com.link.im.handler;
 
 import com.link.common.channel.DefaultChannelAttributeKeys;
+import com.link.common.core.model.heart.LinkPing;
+import com.link.common.core.model.heart.LinkPong;
 import com.link.core.config.LinkCoreConfig;
 import com.link.common.core.event.EventType;
 import com.link.core.event.handler.EventHandler;
-import com.link.core.model.heart.LinkPing;
-import com.link.core.model.heart.LinkPong;
+
 import com.link.core.session.service.LinkSession;
 
 import io.netty.channel.Channel;

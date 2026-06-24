@@ -1,10 +1,10 @@
 package com.link.im.handler;
 
 import com.link.common.channel.DefaultChannelAttributeKeys;
+import com.link.common.core.model.user.LinkUserAuthData;
 import com.link.core.config.LinkCoreConfig;
 import com.link.common.core.event.EventType;
 import com.link.core.event.handler.EventHandler;
-import com.link.core.model.user.LinkUserAuthData;
 import com.link.core.session.service.LinkSession;
 
 import com.link.im.handler.base.BasePlatformEventHandler;
