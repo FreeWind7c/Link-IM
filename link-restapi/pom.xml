@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.link</groupId>
+        <artifactId>cc-link</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>link-restapi</artifactId>
+    <name>link-restapi</name>
+    <description>HTTP 用户请求层：注册/登录、好友、会话、拉取历史消息等 REST 接口。</description>
+
+    <!--
+      装：restapi/**（controller / dto / vo / service）。
+      只依赖数据与契约层；如需在 HTTP 动作里触发实时推送（如好友通过后通知在线方），
+      后续通过 gateway 组装时桥接，或微服务阶段经 MQ，避免 api 直接硬依赖 link-core。
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>com.link</groupId>
+            <artifactId>link-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.link</groupId>
+            <artifactId>link-im</artifactId>
+        </dependency>
+        <!--
+          登录时校验 session（LinkCoreConfig/LinkSession）、好友通过后触发推送（im.service.LinkMessageSender）
+          目前直接依赖 link-core。微服务拆分阶段，这两处实时态交互应改为经 Redis 在线表 / MQ，届时移除本依赖。
+        -->
+        <dependency>
+            <groupId>com.link</groupId>
+            <artifactId>link-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+        </dependency>
+        <!-- 登录态 / token 校验可能用到 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- 独立 HTTP 业务进程：打成可执行 jar（与 link-server-starter 各自独立启动） -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

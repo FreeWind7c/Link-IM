@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.link</groupId>
+        <artifactId>cc-link</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>link-core</artifactId>
+    <name>link-core</name>
+    <description>IM 实时引擎：Netty 服务端 / 编解码 / 事件派发 / 会话 / 心跳 / 重发 / seq 分配 / 业务 handler 与 processor。</description>
+
+    <!--
+      装：core/{server,client,codec,handler,security,event,session,sender,config}、
+          util/delivery/MessageRetryManager、util/seq/MessageSeqAllocator、
+          im/handler/*、im/processor/*、im/service/LinkMessageSender、pool/thread/LinkThreadPool。
+      注：im/service/LinkMessageSender 建议改名 MessagePushService，避免与 core/sender/LinkMessageSender 撞名。
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>com.link</groupId>
+            <artifactId>link-common</artifactId>
+        </dependency>
+
+        <!-- Netty：接入与编解码核心 -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+        </dependency>
+
+        <!-- Spring 容器（DI / ApplicationRunner），不需要 web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <!-- seq 分配走 Redis Lua -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

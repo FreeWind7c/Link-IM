@@ -1,0 +1,14 @@
+# HTTP 业务进程配置
+server:
+  port: ${API_PORT:8080}
+
+spring:
+  application:
+    name: link-restapi
+  data:
+    redis:
+      host: ${REDIS_HOST:1.12.51.224}
+  mongodb:
+    uri: ${MONGO_URI:mongodb://admin:f3Kx#9mPqL2vNzR7wYcJ4sBt@1.12.51.224:27017/im?authSource=admin&serverSelectionTimeoutMS=20000&connectTimeoutMS=20000}
+
+# 不设 link.netty.enabled —— 本进程不启动 Netty 接入服务

@@ -1,6 +1,6 @@
 # Link IM
 
-基于 **Netty + Spring Boot** 的高性能即时通讯（IM）服务端，采用自定义二进制协议，支持 TCP / WebSocket 双承载，事件驱动架构，开箱即用。
+基于 **Netty + Spring Boot** 的高性能即时通讯（IM）服务端，采用自定义二进制协议，支持 TCP / WebSocket 双承载，事件驱动架构，按职责拆分为多模块工程，长连接接入与 HTTP 业务可独立部署。
 
 ## 特性
 
@@ -25,7 +25,24 @@
 | 存储 | Redis、MongoDB |
 | 认证 | JWT（java-jwt） |
 | 序列化 | FastJSON、Gson、Protobuf |
-| 构建 | Maven |
+| 构建 | Maven（多模块） |
+
+## 模块划分
+
+工程按职责拆分为 5 个 Maven 模块，构建顺序由依赖关系自动推导：`common → im → core → restapi / server-starter`。
+
+| 模块 | 职责 | 产物 |
+|------|------|------|
+| `link-common` | 通用基础：注解、序列化、协议模型、ID 生成、Redis 常量、编解码工具 | 库 |
+| `link-im` | 业务领域：实体、业务事件处理、消息处理器、MongoDB 访问、领域服务 | 库 |
+| `link-core` | IM 引擎：Netty 服务端、协议编解码、pipeline 处理器、事件分发、会话、发送器、连接安全 | 库 |
+| `link-restapi` | HTTP 业务层：注册/登录、好友、会话、拉取历史消息等 REST 接口 | **可执行 jar** |
+| `link-server-starter` | 长连接接入进程：组装并启动 Netty，绑定 TCP / WebSocket 端口 | **可执行 jar** |
+
+两个可执行模块各自独立启动：
+
+- **`link-server-starter`** → 启动类 `LinkImApplication`。依赖 `link-im`（传递带上 `link-core` 引擎），classpath 无 webmvc，**只跑长连接**。靠 `link.netty.enabled=true` 让 `DefaultServer` 生效并绑定端口。
+- **`link-restapi`** → 启动类 `LinkApiApplication`。**只跑 HTTP**，未开启 Netty。注意：本进程内“异地登录”校验与好友通过后的在线推送会降级（需后续 Redis 在线表 + MQ 跨进程打通）。
 
 ## 架构概览
 
@@ -85,24 +102,42 @@
 ### 环境要求
 
 - JDK 21+
-- Maven 3.6+
+- Maven 3.6+（或直接用仓库内的 `mvnw`）
 - Redis
 - MongoDB
 
 ### 配置
 
-修改 `src/main/resources/application.yml`：
+两个可执行模块各自的 `application.yml` 中，连接信息均支持环境变量覆盖：
+
+`link-server-starter/src/main/resources/application.yml`（长连接进程）：
 
 ```yaml
 spring:
   data:
     redis:
-      host: localhost
+      host: ${REDIS_HOST:localhost}
   mongodb:
-    uri: mongodb://<user>:<password>@<host>:27017/im?authSource=admin
+    uri: ${MONGO_URI:mongodb://localhost:27017/im}
+link:
+  netty:
+    enabled: true        # 开启 Netty 接入服务
 ```
 
-IM 服务端参数（端口、协议、线程、安全策略等）见 `LinkCoreConfig`，关键项：
+`link-restapi/src/main/resources/application.yml`（HTTP 进程）：
+
+```yaml
+server:
+  port: ${API_PORT:8080}
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+  mongodb:
+    uri: ${MONGO_URI:mongodb://<user>:<password>@<host>:27017/im?authSource=admin}
+```
+
+IM 引擎参数（端口、协议、线程、安全策略等）见 `LinkCoreConfig`，可用 `link.*` 前缀覆盖，关键项：
 
 ```java
 private int port = 8899;                 // 监听端口
@@ -113,49 +148,60 @@ private int maxConnPerIp = 100;          // 单 IP 最大连接数
 private int maxConnections = 100000;     // 全局最大连接数
 ```
 
-### 运行
+### 构建
 
 ```bash
-# 使用 Maven Wrapper
-./mvnw spring-boot:run
-
-# 或打包后运行
-./mvnw clean package
-java -jar target/cc-im-0.0.1-SNAPSHOT.jar
+# 编译并安装全部模块（在仓库根目录执行）
+./mvnw clean install
 ```
 
-启动后控制台输出：`Link IM Server started on port 8899`。
+### 运行
+
+两个进程独立启动，可分别部署：
+
+```bash
+# 1) 长连接接入进程（Netty，绑定 TCP / WebSocket 端口）
+./mvnw -pl link-server-starter spring-boot:run
+# 或：java -jar link-server-starter/target/link-server-starter-0.0.1-SNAPSHOT.jar
+
+# 2) HTTP 业务进程（REST API）
+./mvnw -pl link-restapi spring-boot:run
+# 或：java -jar link-restapi/target/link-restapi-0.0.1-SNAPSHOT.jar
+```
+
+长连接进程启动后控制台输出：`Link IM Server started on port 8899`。
 
 ## 目录结构
 
 ```
-src/main/java/com/link
-├── LinkImApplication.java        # 启动入口
-├── common/                       # 通用：注解、序列化、Channel 属性、Redis 常量
-├── config/                       # Spring 配置（MongoDB 等）
-├── core/                         # IM 核心
-│   ├── server/                   #   Netty 服务端启动
-│   ├── client/                   #   内置测试客户端
-│   ├── codec/                    #   协议编解码
-│   ├── handler/                  #   pipeline 处理器（in/out/idle/ws）
-│   ├── event/                    #   事件类型、分发器、Handler 工厂
-│   ├── session/                  #   会话工厂 / 管理 / 模型
-│   ├── sender/                   #   消息发送
-│   ├── security/                 #   连接安全管理
-│   └── model/                    #   协议模型（PackData、心跳、好友等）
-├── im/                           # 业务领域
-│   ├── entity/                   #   实体（消息 / 好友 / 群 / 用户 / 各类消息体）
-│   ├── handler/                  #   业务事件处理（登录 / 消息 / 群消息 / 心跳）
-│   ├── processor/                #   消息处理器
-│   └── util/                     #   JWT、MD5 等工具
-├── restapi/                      # HTTP 接口（chat / friend / message / user）
-└── pool/                         # 业务线程池
+cc-link
+├── pom.xml                     # 聚合 + 依赖/插件版本统管
+├── link-common/                # 通用：注解、序列化、协议模型、ID、Redis 常量
+│   └── com/link/common
+├── link-im/                    # 业务领域：实体、业务 Handler、处理器、Mongo、服务
+│   └── com/link/im
+├── link-core/                  # IM 引擎：Netty 服务端 + 协议 + 事件 + 会话 + 安全
+│   └── com/link/core
+│       ├── server/             #   Netty 服务端启动
+│       ├── codec/              #   协议编解码
+│       ├── handler/            #   pipeline 处理器（tcp/ws/idle/security）
+│       ├── event/              #   事件类型、分发器、Handler 工厂
+│       ├── session/            #   会话工厂 / 管理 / 服务
+│       ├── sender/             #   消息发送
+│       └── security/           #   连接安全管理
+├── link-restapi/               # HTTP 接口（chat / friend / message / user）→ 可执行 jar
+│   └── com/link
+│       ├── LinkApiApplication.java
+│       └── restapi/
+└── link-server-starter/        # 长连接接入进程 → 可执行 jar
+    └── com/link
+        └── LinkImApplication.java
 ```
 
 ## 安全提示
 
-- 当前 `application.yml` 中包含明文 MongoDB 连接凭据，**建议改用环境变量或配置中心注入**，不要提交真实生产凭据到仓库。
-- 推送到公开仓库前，请确认 `.gitignore` 已排除敏感配置，并轮换任何曾经提交过的密钥。
+- 仓库内 `application.yml` 的连接信息已改为环境变量注入（`REDIS_HOST` / `MONGO_URI` 等），**请勿把真实生产凭据写死并提交**。
+- 推送到公开仓库前，确认 `.gitignore` 已排除敏感配置，并轮换任何曾经提交过的密钥。
 
 ## License
 

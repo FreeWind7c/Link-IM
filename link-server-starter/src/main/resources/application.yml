@@ -1,0 +1,15 @@
+# Netty 接入进程配置
+spring:
+  application:
+    name: link-server-starter
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+  mongodb:
+    uri: ${MONGO_URI:mongodb://localhost:27017/im}
+
+# 开启 Netty 接入服务（DefaultServer 仅在该开关为 true 的进程中启动）
+link:
+  netty:
+    enabled: true
+    # 端口等其余参数见 LinkCoreConfig 默认值，可按 link.* 前缀覆盖
