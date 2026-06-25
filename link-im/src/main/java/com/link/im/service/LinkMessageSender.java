@@ -28,6 +28,7 @@ public class LinkMessageSender {
         // 此处不抛错、直接返回——在线推送本应由持有连接的 gateway 进程完成。
         // TODO 微服务化：改为查 Redis 在线表定位 gateway 节点，并经 MQ 投递推送指令。
         List<LinkSession> sessions = this.config.getSessionManager().getSession(userId);
+
         if (sessions == null || sessions.isEmpty()) {
             log.debug("用户 {} 在本进程无在线 session，跳过在线推送（待 Redis/MQ 接入）", userId);
             return;

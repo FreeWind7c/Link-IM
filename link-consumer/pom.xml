@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.link</groupId>
+        <artifactId>cc-link</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>link-consumer</artifactId>
+    <name>link-consumer</name>
+    <description>MQ 消费层：消费 restapi 等进程投递的推送指令（PushCommand），在持有长连接的进程内调 LinkMessageSender 真正下发。</description>
+
+    <!--
+      库模块，不独立启动。被 link-server-starter 依赖后，其 @RabbitListener 监听器随 Netty 进程
+      （LinkImApplication，扫描 com.link）启动，从而与 LinkCoreConfig / sessionMap 同处一个 JVM——
+      这是它能真正 channel.write() 的前提：Channel 是堆内活对象，无法跨进程传递，推送只能在持连进程执行。
+
+      不依赖 link-restapi（避免把 HTTP 业务拖进 Netty 进程）；PushCommand 等契约类放在 link-common，两端共享。
+      不打可执行 jar（无 spring-boot-maven-plugin），保持普通 jar 供 server-starter 聚合。
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>com.link</groupId>
+            <artifactId>link-common</artifactId>
+        </dependency>
+        <!--
+          依赖 link-im（传递引入 link-core 引擎）：消费指令后调 im.service.LinkMessageSender，
+          经 LinkCoreConfig.getSessionManager()/getLinkSender() 完成在线推送。
+        -->
+        <dependency>
+            <groupId>com.link</groupId>
+            <artifactId>link-im</artifactId>
+        </dependency>
+        <!-- RabbitMQ 消费端：@RabbitListener / 容器工厂 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

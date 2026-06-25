@@ -6,7 +6,19 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
   mongodb:
-    uri: ${MONGO_URI:mongodb://localhost:27017/im}
+    uri: ${MONGO_URI:mongodb://admin:f3Kx%239mPqL2vNzR7wYcJ4sBt@106.52.57.213:27017/im?authSource=admin&directConnection=true&serverSelectionTimeoutMS=20000&connectTimeoutMS=20000}
+  # 推送消费端：link-consumer 的 @RabbitListener 在本进程消费 PushCommand，
+  # 经 LinkMessageSender 用本进程 sessionMap 中的 Channel 真正下发（消费者必须与 Channel 同 JVM）。
+  # fanout 广播 + 本节点专属临时队列（见 PushMqConfig）：在线推送可丢，故用自动 ack，无需手动 ack/DLX。
+  rabbitmq:
+    host: ${RABBITMQ_HOST:106.52.57.213}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:admin}
+    password: ${RABBITMQ_PASSWORD:Rq9#mW2$xK7@nP4vL6#jT8!s}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    listener:
+      simple:
+        acknowledge-mode: auto
 
 # 开启 Netty 接入服务（DefaultServer 仅在该开关为 true 的进程中启动）
 link:

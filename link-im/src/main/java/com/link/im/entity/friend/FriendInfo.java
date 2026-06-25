@@ -5,6 +5,9 @@ import com.link.im.entity.base.BaseEntity;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.bson.types.ObjectId;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
@@ -15,17 +18,24 @@ import org.springframework.data.mongodb.core.mapping.Field;
 @Data
 @Accessors(chain = true)
 @Document(collection = FriendInfo.COLLECTION_NAME)
+@CompoundIndexes({
+        @CompoundIndex(name = "idx_user_status", def = "{'user_id':1,'status':1}"),
+        @CompoundIndex(name = "idx_user_friend", def = "{'user_id':1,'friend_id':1}",unique = true),
+        @CompoundIndex(name = "idx_user_friend_status", def = "{'user_id':1,'friend_id':1,'status':1}")
+})
 public class FriendInfo extends BaseEntity {
 
     public static final String COLLECTION_NAME = "friend_info" ;
 
     @Field("user_id")
+    @Indexed
     private ObjectId userId;
 
     @Field("friend_id")
     private ObjectId friendId;
 
     private String remark;
+
     /**
      * 状态 1=正常，2=删除，3=黑名单
      */

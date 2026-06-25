@@ -24,6 +24,12 @@ public class DefaultChannelSessionManager implements LinkSessionManager {
 
     @Override
     public void addSession(LinkSession session) {
+        // 【异地登录策略：踢旧】同 userId+platform 互斥——后登录的同端设备顶掉先登录的。
+        // 例：账号在 Windows1 已在线，再用 Windows2（同为 windows 端）登录，则挤掉 Windows1。
+        // 这是全系统唯一的异地登录处置点：只有连接层同时握有「真相」(本地在线表) 和「手段」(能 close 旧连接)；
+        // HTTP 登录无状态、不持连接，不做该判断。
+        // 注意：当前仅能踢「本节点」的旧连接；跨 Netty 节点的同端互踢需配合 Redis 在线表 + 踢人指令（待接入）。
+        //
         // 整个「取/建内层 map + put」放进 compute，保证对同一 userId 原子，
         // 不会与并发的 removeSession(computeIfPresent) 互相错过而丢 session。
         LinkSession[] oldHolder = new LinkSession[1];
@@ -46,6 +52,7 @@ public class DefaultChannelSessionManager implements LinkSessionManager {
 
     @Override
     public List<LinkSession> getSession(String sessionId) {
+
         ConcurrentHashMap<Integer, LinkSession> inner = this.sessionMap.get(sessionId);
         if (inner == null) {
             return null;

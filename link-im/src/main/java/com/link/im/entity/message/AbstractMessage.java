@@ -5,6 +5,9 @@ import lombok.Data;
 import lombok.ToString;
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 /**
@@ -13,6 +16,11 @@ import org.springframework.data.mongodb.core.mapping.Field;
  */
 @Data
 @ToString
+@CompoundIndexes({
+        @CompoundIndex(name = "idx_chat_seq", def = "{'chat_id':1,'seq':1}"),
+        @CompoundIndex(name = "idx_chat_time", def = "{'chat_id':1,'timestamp':1}"),
+        @CompoundIndex(name = "idx_chat_type_time", def = "{'chat_id':1,'type':1,'timestamp':1}"),
+})
 public abstract class AbstractMessage {
 
     @Id
@@ -23,6 +31,7 @@ public abstract class AbstractMessage {
     private int type;
 
     @Field("chat_id")
+    @Indexed
     private String chatId;
 
     @Field("snd_id")

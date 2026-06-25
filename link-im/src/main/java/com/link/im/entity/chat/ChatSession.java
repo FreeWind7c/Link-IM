@@ -4,6 +4,9 @@ import com.link.im.entity.base.BaseEntity;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.bson.types.ObjectId;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
@@ -31,6 +34,9 @@ import org.springframework.data.mongodb.core.mapping.Field;
 @Data
 @Accessors(chain = true)
 @Document(collection = ChatSession.COLLECTION_NAME)
+@CompoundIndexes({
+        @CompoundIndex(name = "idx_chat_seq", def = "{'chat_id':1,'last_msg_seq':1}"),
+})
 public class ChatSession extends BaseEntity {
     public static final String COLLECTION_NAME = "chat_session";
 
@@ -41,9 +47,11 @@ public class ChatSession extends BaseEntity {
 
     /** 会话标识：单聊 single_{minUid}_{maxUid}，群聊 group_{groupId}。全会话唯一，建唯一索引。 */
     @Field("chat_id")
+    @Indexed
     private String chatId;
 
     /** 会话类型：1=单聊 2=群聊 */
+    @Indexed
     private int type;
 
     @Field("last_msg_type")

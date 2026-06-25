@@ -52,7 +52,7 @@ public class LinkDefaultMessageEventHandler extends BaseMongoService<DefaultMess
         // TODO 该阶段解析消息、生成序列号、入库、回ACK 该handler 处理C->S消息可靠
         DefaultMessageInfo message = (DefaultMessageInfo) obj;
         MessageSeqAllocator.SeqResult seqResult = messageSeqAllocator.allocate(message.getChatId(), message.getId());
-
+        printf("message:",message,DefaultMessageInfo.class);
         if (seqResult.duplicate())
         {
             this.config.getLinkSender().send(EventType.ACK,channel,message.getSeq());

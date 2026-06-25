@@ -4,6 +4,9 @@ import com.link.im.entity.base.BaseEntity;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.bson.types.ObjectId;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
@@ -33,6 +36,12 @@ import org.springframework.data.mongodb.core.mapping.Field;
 @Data
 @Accessors(chain = true)
 @Document(collection = ChatMember.COLLECTION_NAME)
+@CompoundIndexes({
+        @CompoundIndex(name = "idx_owner_chat", def = "{'owner_id':1,'chat_id':1}", unique = true),
+        @CompoundIndex(name = "idx_owner_target", def = "{'owner_id':1,'target_id':1}", unique = true),
+        @CompoundIndex(name = "idx_owner_seq", def = "{'owner_id':1,'last_read_seq':1}"),
+        @CompoundIndex(name = "idx_owner_top", def = "{'owner_id':1,'show_top':1}")
+})
 public class ChatMember extends BaseEntity {
     public static final String COLLECTION_NAME = "chat_member";
 
@@ -43,6 +52,7 @@ public class ChatMember extends BaseEntity {
 
     /** 这条记录属于谁的收件箱（该用户的 uid）。配合 chatId 唯一确定一条记录，建唯一复合索引。 */
     @Field("owner_id")
+    @Indexed
     private ObjectId ownerId;
 
     /** 会话标识：单聊 single_{minUid}_{maxUid}，群聊 group_{groupId}。和 ChatSession.chatId 对应。 */

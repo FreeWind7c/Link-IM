@@ -26,7 +26,7 @@ public class GroupInfo extends BaseEntity {
     private String avatar;
 
     @Field("owner_id")
-    private ObjectId  ownerId;
+    private ObjectId ownerId;
 
     private String introduction;
 

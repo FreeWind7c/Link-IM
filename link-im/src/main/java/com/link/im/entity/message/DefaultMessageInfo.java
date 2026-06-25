@@ -12,4 +12,5 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Document(DefaultMessageInfo.COLLECTION_NAME)
 public class DefaultMessageInfo extends AbstractMessage {
     public static final String COLLECTION_NAME = "default_message_queue";
+
 }

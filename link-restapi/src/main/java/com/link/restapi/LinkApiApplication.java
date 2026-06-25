@@ -1,4 +1,4 @@
-package com.link;
+package com.link.restapi;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -15,7 +15,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *
  * <p>启动类置于 com.link 根包，使组件扫描覆盖 com.link.restapi / com.link.im 等全部模块。
  */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.link")
 public class LinkApiApplication {
 
     public static void main(String[] args) {

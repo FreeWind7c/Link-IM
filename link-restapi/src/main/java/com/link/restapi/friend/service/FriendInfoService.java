@@ -1,8 +1,9 @@
 package com.link.restapi.friend.service;
 
 import com.link.common.core.event.EventType;
-import com.link.core.model.friend.LinkApproveFriend;
-import com.link.core.model.friend.LinkFriend;
+
+import com.link.common.core.model.friend.LinkApproveFriend;
+import com.link.common.core.model.friend.LinkFriend;
 import com.link.im.enums.friend.FriendInfoCode;
 import com.link.im.enums.friend.LinkFriendStatus;
 import com.link.im.mongo.BaseMongoService;
@@ -11,9 +12,9 @@ import com.link.im.entity.friend.FriendRequest;
 import com.link.im.entity.user.UserInfo;
 import com.link.restapi.friend.model.dto.LinkAddFriendDTO;
 import com.link.restapi.friend.model.vo.LinkFriendInfoVO;
+import com.link.restapi.push.RemotePushPublisher;
 import com.link.restapi.user.model.dto.LinkApproveFriendDTO;
 
-import com.link.im.service.LinkMessageSender;
 import com.link.im.util.R;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
@@ -37,7 +38,7 @@ import java.util.stream.Collectors;
 public class FriendInfoService extends BaseMongoService<FriendInfo> {
 
     @Autowired
-    private LinkMessageSender sender;
+    private RemotePushPublisher pushPublisher;
 
     public R addFriend(LinkAddFriendDTO dto) {
         boolean isUser = this.getMongoTemplate().exists(
@@ -58,8 +59,10 @@ public class FriendInfoService extends BaseMongoService<FriendInfo> {
                 .setAvatar(user.getAvatar());
         FriendRequest request = new FriendRequest().setUserId(new ObjectId(dto.getUserId())).setFriendId(new ObjectId(dto.getFriendId()))
                 .setSource(dto.getSource()).setStatus(0);
+        request.setCreatedTime(now());
+        request.setUpdatedTime(now());
         this.getMongoTemplate().insert(request);
-        this.sender.send(dto.getFriendId(), EventType.ADD_FRIEND,linkFriend);
+        this.pushPublisher.push(dto.getFriendId(), EventType.ADD_FRIEND, linkFriend);
         return R.ok(FriendInfoCode.NOTIFY_USER);
     }
     public R queryFriend(String userId) {
@@ -127,9 +130,9 @@ public class FriendInfoService extends BaseMongoService<FriendInfo> {
 
         // 无论新增还是恢复，双方都需要同步好友关系
         LinkApproveFriend notifySelf = new LinkApproveFriend(dto.getUserId(), dto.getFriendId());
-        this.sender.send(dto.getUserId(), EventType.APPROVE_FRIEND, notifySelf);
+        this.pushPublisher.push(dto.getUserId(), EventType.APPROVE_FRIEND, notifySelf);
         LinkApproveFriend notifyFriend = new LinkApproveFriend(dto.getFriendId(), dto.getUserId());
-        this.sender.send(dto.getFriendId(), EventType.APPROVE_FRIEND, notifyFriend);
+        this.pushPublisher.push(dto.getFriendId(), EventType.APPROVE_FRIEND, notifyFriend);
         return R.ok();
     }
 }

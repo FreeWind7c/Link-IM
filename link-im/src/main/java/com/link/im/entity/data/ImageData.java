@@ -9,5 +9,9 @@ import lombok.Data;
  */
 @Data
 public class ImageData extends BaseData {
+    private String url;
 
+    private int width;
+
+    private int height;
 }

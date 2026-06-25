@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
  * @Author: 无敌代码写手
  * @CreateTime: 2026年06月21日
  */
-@RequestMapping("/api/friend")
+@RequestMapping("/friend")
 @RestController
 public class LinkFriendInfoController {
 
@@ -29,8 +29,6 @@ public class LinkFriendInfoController {
     public R queryFriend(@RequestParam String userId){
         return friendInfoService.queryFriend(userId);
     }
-
-
 
     @PostMapping("/add-friend")
     public R addFriend(@RequestBody LinkAddFriendDTO dto){

@@ -28,13 +28,11 @@
             <groupId>com.link</groupId>
             <artifactId>link-im</artifactId>
         </dependency>
-        <!--
-          登录时校验 session（LinkCoreConfig/LinkSession）、好友通过后触发推送（im.service.LinkMessageSender）
-          目前直接依赖 link-core。微服务拆分阶段，这两处实时态交互应改为经 Redis 在线表 / MQ，届时移除本依赖。
-        -->
+
+        <!-- 注册到 Nacos：本服务作为微服务实例被网关经服务发现路由 -->
         <dependency>
-            <groupId>com.link</groupId>
-            <artifactId>link-core</artifactId>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>
 
         <dependency>
@@ -49,6 +47,14 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <!--
+          推送发布端：HTTP 动作（如好友通过）需触发在线推送，但本进程不持长连接。
+          改为发布 PushCommand 到 RabbitMQ，由持连的 Netty 进程（经 link-consumer）消费后真正下发。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
     </dependencies>
 

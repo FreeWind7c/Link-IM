@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @Author: 无敌代码写手
  * @CreateTime: 2026年06月22日
  */
-@RequestMapping("/api/chat")
+@RequestMapping("/chat")
 @RestController
 public class LinkChatSessionController {
 

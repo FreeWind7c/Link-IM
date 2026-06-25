@@ -66,7 +66,7 @@ public abstract class BaseMongoService<T> {
         return validator;
     }
 
-    protected void print(String title,Object obj,Class<?> clazz){
+    protected void printf(String title,Object obj,Class<?> clazz){
         Gson gson = new Gson();
         String json = gson.toJson(obj, clazz);
 

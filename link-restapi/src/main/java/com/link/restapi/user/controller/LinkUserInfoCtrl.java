@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
  * @CreateTime: 2026年06月20日
  */
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/user")
 public class LinkUserInfoCtrl {
 
 

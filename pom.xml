@@ -16,29 +16,55 @@
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>cc-link</name>
-    <description>Link IM —— 模块化多模块工程（common / im / core / restapi / server-starter）</description>
+    <description>Link IM —— 模块化多模块工程（common / im / core / restapi / consumer / server-starter）</description>
 
-    <!-- 子模块聚合。构建顺序由 Maven 按依赖关系自动推导：common → im → core/restapi → server-starter -->
+    <!-- 子模块聚合。构建顺序由 Maven 按依赖关系自动推导：common → im → core/restapi/consumer → server-starter -->
     <modules>
         <module>link-common</module>
         <module>link-im</module>
         <module>link-core</module>
         <module>link-restapi</module>
+
+        <module>link-consumer</module>
+        <module>link-oss</module>
+        <module>link-gateway</module>
         <module>link-server-starter</module>
     </modules>
 
     <properties>
         <java.version>21</java.version>
         <!-- 三方库版本集中管理 -->
-        <netty.version>4.1.119.Final</netty.version>
+        <!-- 注意：不要重定义 netty.version！该属性名与 Spring Boot BOM 内部用于 import
+             netty-bom 的属性同名，覆盖它会把全工程 Netty 降级，与 reactor-netty 1.3.5
+             所需的 Netty 4.2（MultiThreadIoEventLoopGroup）冲突。Netty 版本交给 SB4 BOM 管。 -->
         <java-jwt.version>4.5.0</java-jwt.version>
         <fastjson.version>1.2.83</fastjson.version>
         <gson.version>2.10.1</gson.version>
+        <!-- 微服务栈：与 Spring Boot 4.0 对齐。Spring Cloud 2025.1.x（parent 5.0.0）+
+             Spring Cloud Alibaba 2025.1.0.0（Nacos client 3.1.1），二者同建于 SC parent 5.0.0。 -->
+        <spring-cloud.version>2025.1.2</spring-cloud.version>
+        <spring-cloud-alibaba.version>2025.1.0.0</spring-cloud-alibaba.version>
     </properties>
 
     <!-- 仅声明版本，不实际引入。子模块按需 <dependency> 时无需再写 version -->
     <dependencyManagement>
         <dependencies>
+            <!-- ===== 微服务栈 BOM（import）：统一 Spring Cloud / Alibaba 系列版本 ===== -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>${spring-cloud-alibaba.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
             <!-- ===== 内部模块统一版本 ===== -->
             <dependency>
                 <groupId>com.link</groupId>
@@ -60,13 +86,15 @@
                 <artifactId>link-restapi</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.link</groupId>
+                <artifactId>link-consumer</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- ===== 三方库版本锁定 ===== -->
-            <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-all</artifactId>
-                <version>${netty.version}</version>
-            </dependency>
+            <!-- netty-all 版本由 Spring Boot 的 netty-bom 统一管理，此处不再显式锁定，
+                 避免与 SB4 要求的 Netty 4.2 冲突。 -->
             <dependency>
                 <groupId>com.auth0</groupId>
                 <artifactId>java-jwt</artifactId>

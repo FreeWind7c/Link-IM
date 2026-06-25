@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @Author: 无敌代码写手
  * @CreateTime: 2026年06月23日
  */
-@RequestMapping("/api/message")
+@RequestMapping("/message")
 @RestController
 public class LinkMessageInfoController {
 
