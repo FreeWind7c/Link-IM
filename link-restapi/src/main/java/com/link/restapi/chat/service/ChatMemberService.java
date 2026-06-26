@@ -2,8 +2,8 @@ package com.link.restapi.chat.service;
 
 
 import com.link.im.entity.chat.ChatMember;
-import com.link.im.mongo.BaseMongoService;
-import com.link.im.util.R;
+import com.link.im.mongo.BasePlatFormMongoService;
+import com.link.im.util.ApiResult;
 import com.link.restapi.chat.model.dto.LinkReportSessionDto;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
@@ -19,11 +19,11 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
-public class ChatMemberService extends BaseMongoService<ChatMember> {
+public class ChatMemberService extends BasePlatFormMongoService<ChatMember> {
 
 
 
-    public R reportSession(LinkReportSessionDto dto) {
+    public ApiResult reportSession(LinkReportSessionDto dto) {
 
         Query eq = eq(
                 where(col(ChatMember::getOwnerId)).is(new ObjectId(dto.getUserId()))
@@ -38,6 +38,6 @@ FindAndModifyOptions options = new FindAndModifyOptions();
 
         ChatMember member = this.findAndModify(eq, update, options);
 
-        return R.ok();
+        return ApiResult.success();
     }
 }

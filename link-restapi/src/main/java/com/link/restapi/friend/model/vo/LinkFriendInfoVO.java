@@ -38,7 +38,7 @@ public class LinkFriendInfoVO {
 
     /** 由好友关系实体 + 对端用户信息组装展示 VO。 */
     public static LinkFriendInfoVO from(FriendInfo friendInfo, UserInfo user) {
-        return new LinkFriendInfoVO().setUserId(friendInfo.getUserId().toHexString())
+        return new LinkFriendInfoVO().setUserId(friendInfo.getFriendId().toHexString())
                 .setNickname(user.getNickname()).setAvatar(user.getAvatar())
                 .setRemark(friendInfo.getRemark()).setStatus(friendInfo.getStatus())
                 .setSource(friendInfo.getSource()).setShowTop(friendInfo.isShowTop())

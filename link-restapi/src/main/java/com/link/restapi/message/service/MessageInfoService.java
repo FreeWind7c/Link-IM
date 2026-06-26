@@ -1,10 +1,10 @@
 package com.link.restapi.message.service;
 
 import com.link.im.enums.gloabl.GlobalCode;
-import com.link.im.mongo.BaseMongoService;
+import com.link.im.mongo.BasePlatFormMongoService;
 import com.link.im.entity.message.AbstractMessage;
 import com.link.im.entity.message.DefaultMessageInfo;
-import com.link.im.util.R;
+import com.link.im.util.ApiResult;
 import com.link.restapi.message.model.dto.LinkPullMessageDto;
 import com.link.restapi.message.model.vo.LinkDefaultMessageVo;
 import lombok.extern.slf4j.Slf4j;
@@ -21,12 +21,12 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
-public class MessageInfoService extends BaseMongoService<DefaultMessageInfo>  {
+public class MessageInfoService extends BasePlatFormMongoService<DefaultMessageInfo> {
 
 
-    public R pullMessage(LinkPullMessageDto dto) {
+    public ApiResult pullMessage(LinkPullMessageDto dto) {
         if (!stringValidator(dto.getChatId()) || !pageValidator(dto.getSkip(),dto.getLimit()))
-            return R.error(GlobalCode.PARAMETER_VALIDATOR_ERROR);
+            return ApiResult.error(GlobalCode.PARAMETER_VALIDATOR_ERROR);
 
         Query eq = eq(
                 where(col(AbstractMessage::getChatId)).is(dto.getChatId())
@@ -37,7 +37,7 @@ public class MessageInfoService extends BaseMongoService<DefaultMessageInfo>  {
 
         List<DefaultMessageInfo> messages = this.find(eq);
 
-        return R.ok().setData(createVo(messages));
+        return ApiResult.success().setData(createVo(messages));
     }
 
     private List<LinkDefaultMessageVo> createVo(List<DefaultMessageInfo> messages) {

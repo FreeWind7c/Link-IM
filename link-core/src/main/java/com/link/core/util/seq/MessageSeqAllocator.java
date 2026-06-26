@@ -1,4 +1,4 @@
-package com.link.util.seq;
+package com.link.core.util.seq;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;

@@ -1,6 +1,6 @@
 package com.link.restapi.chat.controller;
 
-import com.link.im.util.R;
+import com.link.im.util.ApiResult;
 import com.link.restapi.chat.model.dto.LinkCreateChatDto;
 import com.link.restapi.chat.model.dto.LinkPullChatDTO;
 import com.link.restapi.chat.service.ChatSessionService;
@@ -24,12 +24,12 @@ public class LinkChatSessionController {
 
 
     @PostMapping("create-chat")
-    public R createChat(@RequestBody LinkCreateChatDto dto){
+    public ApiResult createChat(@RequestBody LinkCreateChatDto dto){
         return chatSessionService.createChat(dto);
     }
 
     @PostMapping("/pull-chat")
-    public R pullChat (@RequestBody LinkPullChatDTO dto){
+    public ApiResult pullChat (@RequestBody LinkPullChatDTO dto){
          return chatSessionService.pullChat(dto);
     }
 

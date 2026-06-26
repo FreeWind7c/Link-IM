@@ -1,6 +1,6 @@
 package com.link.restapi.chat.controller;
 
-import com.link.im.util.R;
+import com.link.im.util.ApiResult;
 import com.link.restapi.chat.model.dto.LinkReportSessionDto;
 import com.link.restapi.chat.service.ChatMemberService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +22,7 @@ public class LinkChatMemberController {
     private ChatMemberService chatMemberService;
 
     @PostMapping("/report-session")
-    public R reportSession(@RequestBody LinkReportSessionDto dto){
+    public ApiResult reportSession(@RequestBody LinkReportSessionDto dto){
         return chatMemberService.reportSession(dto);
     }
 

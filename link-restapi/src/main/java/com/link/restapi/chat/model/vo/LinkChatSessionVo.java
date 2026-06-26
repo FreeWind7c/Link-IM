@@ -2,6 +2,7 @@ package com.link.restapi.chat.model.vo;
 
 import com.link.im.entity.chat.ChatMember;
 import com.link.im.entity.chat.ChatSession;
+import com.link.im.entity.group.GroupInfo;
 import com.link.im.entity.user.UserInfo;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -52,11 +53,30 @@ public class LinkChatSessionVo {
     private boolean hidden;
 
 
-    public LinkChatSessionVo createVo(ChatSession session, ChatMember member, UserInfo user) {
+    /** 单聊：title/avatar 取对端用户的昵称、头像。 */
+    public LinkChatSessionVo createSingleVo(ChatSession session, ChatMember member, UserInfo user) {
         return this.setChatId(session.getChatId())
                 .setType(session.getType())
                 .setTitle(user.getNickname())
                 .setAvatar(user.getAvatar())
+                .setOwnerId(member.getOwnerId().toHexString())
+                .setTargetId(member.getTargetId().toHexString())
+                .setLastMsgSummary(session.getLastMsgSummary())
+                .setUnreadCount(session.getLastMsgSeq() - member.getLastReadSeq())
+                .setLastReadSeq(member.getLastReadSeq())
+                .setLastMsgSeq(session.getLastMsgSeq())
+                .setLastMsgTime(session.getLastMsgTime())
+                .setShowTop(member.isShowTop())
+                .setSilence(member.isSilence())
+                .setHidden(member.isHidden());
+    }
+
+    /** 群聊：title/avatar 取群的标题、头像。 */
+    public LinkChatSessionVo createGroupVo(ChatSession session, ChatMember member, GroupInfo group) {
+        return this.setChatId(session.getChatId())
+                .setType(session.getType())
+                .setTitle(group.getTitle())
+                .setAvatar(group.getAvatar())
                 .setOwnerId(member.getOwnerId().toHexString())
                 .setTargetId(member.getTargetId().toHexString())
                 .setLastMsgSummary(session.getLastMsgSummary())

@@ -1,4 +1,4 @@
-package com.link.im.enums.friend;
+package com.link.im.constants.friend;
 
 /**
  * @Author: 无敌代码写手

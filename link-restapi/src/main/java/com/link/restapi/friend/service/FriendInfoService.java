@@ -5,8 +5,8 @@ import com.link.common.core.event.EventType;
 import com.link.common.core.model.friend.LinkApproveFriend;
 import com.link.common.core.model.friend.LinkFriend;
 import com.link.im.enums.friend.FriendInfoCode;
-import com.link.im.enums.friend.LinkFriendStatus;
-import com.link.im.mongo.BaseMongoService;
+import com.link.im.constants.friend.LinkFriendStatus;
+import com.link.im.mongo.BasePlatFormMongoService;
 import com.link.im.entity.friend.FriendInfo;
 import com.link.im.entity.friend.FriendRequest;
 import com.link.im.entity.user.UserInfo;
@@ -15,7 +15,7 @@ import com.link.restapi.friend.model.vo.LinkFriendInfoVO;
 import com.link.restapi.push.RemotePushPublisher;
 import com.link.restapi.user.model.dto.LinkApproveFriendDTO;
 
-import com.link.im.util.R;
+import com.link.im.util.ApiResult;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,23 +35,23 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
-public class FriendInfoService extends BaseMongoService<FriendInfo> {
+public class FriendInfoService extends BasePlatFormMongoService<FriendInfo> {
 
     @Autowired
     private RemotePushPublisher pushPublisher;
 
-    public R addFriend(LinkAddFriendDTO dto) {
+    public ApiResult addFriend(LinkAddFriendDTO dto) {
         boolean isUser = this.getMongoTemplate().exists(
                 new Query(Criteria.where(col(UserInfo::getId)).is(new ObjectId(dto.getFriendId()))),
                 UserInfo.class);
         if (!isUser)
-            return R.error(FriendInfoCode.FRIEND_DOES_NOT_EXIST);
+            return ApiResult.error(FriendInfoCode.FRIEND_DOES_NOT_EXIST);
         boolean exists = this.exists(new Query(Criteria
                 .where(col(FriendInfo::getUserId)).is(new ObjectId(dto.getUserId()))
                 .and(col(FriendInfo::getFriendId)).is(new ObjectId(dto.getFriendId())))
         );
         if (exists)
-            return R.error(FriendInfoCode.FRIEND_EXIST);
+            return ApiResult.error(FriendInfoCode.FRIEND_EXIST);
         UserInfo user = this.getMongoTemplate().findById(new ObjectId(dto.getUserId()),UserInfo.class);
         LinkFriend linkFriend = new LinkFriend()
                 .setUserId(user.getId().toHexString())
@@ -63,9 +63,9 @@ public class FriendInfoService extends BaseMongoService<FriendInfo> {
         request.setUpdatedTime(now());
         this.getMongoTemplate().insert(request);
         this.pushPublisher.push(dto.getFriendId(), EventType.ADD_FRIEND, linkFriend);
-        return R.ok(FriendInfoCode.NOTIFY_USER);
+        return ApiResult.success(FriendInfoCode.NOTIFY_USER);
     }
-    public R queryFriend(String userId) {
+    public ApiResult queryFriend(String userId) {
         // 查询出该用户的好友
         Query eq1 = eq(
                 where(col(FriendInfo::getUserId)).is(new ObjectId(userId))
@@ -87,12 +87,12 @@ public class FriendInfoService extends BaseMongoService<FriendInfo> {
         }).collect(Collectors.toList());
 
 
-        return R.ok().setData(friends);
+        return ApiResult.success().setData(friends);
     }
 
-    public R approvePetition(LinkApproveFriendDTO dto) {
+    public ApiResult approvePetition(LinkApproveFriendDTO dto) {
         if (dto.getUserId().equals(dto.getFriendId()))
-            return R.error(FriendInfoCode.DONT_ADD_SELF);
+            return ApiResult.error(FriendInfoCode.DONT_ADD_SELF);
 
         ObjectId uid = new ObjectId(dto.getUserId());
         ObjectId fid = new ObjectId(dto.getFriendId());
@@ -106,7 +106,7 @@ public class FriendInfoService extends BaseMongoService<FriendInfo> {
                         .and(col(FriendInfo::getFriendId)).is(fid)));
 
         if (existed != null && existed.getStatus() == LinkFriendStatus.F)
-            return R.error(FriendInfoCode.FRIEND_EXIST);
+            return ApiResult.error(FriendInfoCode.FRIEND_EXIST);
 
         long ts = now();
         if (existed != null) {
@@ -133,6 +133,6 @@ public class FriendInfoService extends BaseMongoService<FriendInfo> {
         this.pushPublisher.push(dto.getUserId(), EventType.APPROVE_FRIEND, notifySelf);
         LinkApproveFriend notifyFriend = new LinkApproveFriend(dto.getFriendId(), dto.getUserId());
         this.pushPublisher.push(dto.getFriendId(), EventType.APPROVE_FRIEND, notifyFriend);
-        return R.ok();
+        return ApiResult.success();
     }
 }

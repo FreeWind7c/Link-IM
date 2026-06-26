@@ -1,4 +1,4 @@
-package com.link.util.id;
+package com.link.common.util.id;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -60,6 +60,30 @@ public final class ChatIdGenerator {
         BigInteger value = new BigInteger(1, digest, 0, 8).mod(MOD);
 
         return "75"+String.format("%014d", value);
+    }
+
+
+
+    /**
+     * 由群 ID 生成群聊会话 ID。确定性（同一群恒得同一会话 ID）。
+     *
+     * @param groupId 群标识（任意非空字符串）
+     * @return 群聊会话 ID（"76" 前缀 + 14 位纯数字，看不出原始群 ID；碰撞特性见类注释）
+     * @throws IllegalArgumentException 入参为 null 或空
+     */
+    public static String nextId(String groupId) {
+        if (groupId == null || groupId.isEmpty()) {
+            throw new IllegalArgumentException("群标识不能为空");
+        }
+
+        // 用“长度:值”定界，与单聊拼接方式保持一致的风格。
+        String joined = "G:" + groupId.length() + ":" + groupId;
+
+        byte[] digest = sha256(joined);
+        // 取前 8 字节当无符号整数，对 10^14 取模，得到 [0, 10^14) 内的数。
+        BigInteger value = new BigInteger(1, digest, 0, 8).mod(MOD);
+
+        return "76" + String.format("%014d", value);
     }
 
     private static byte[] sha256(String text) {

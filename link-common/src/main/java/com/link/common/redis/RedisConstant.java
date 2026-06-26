@@ -8,4 +8,5 @@ public class RedisConstant {
 
     public static final String MESSAGE_SEQ = "message_seq:";
 
+    public static final String GROUP_MEMBER = "group_member:" ;
 }

@@ -8,7 +8,6 @@ import com.link.common.core.event.EventType;
 import com.link.core.event.handler.EventHandler;
 
 import com.link.core.session.service.LinkSession;
-import com.link.im.mongo.BaseMongoService;
 import com.link.util.delivery.MessageRetryManager;
 
 import io.netty.channel.Channel;

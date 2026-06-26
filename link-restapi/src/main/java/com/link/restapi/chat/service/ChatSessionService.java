@@ -1,22 +1,26 @@
 package com.link.restapi.chat.service;
 
+import com.link.common.util.id.ChatIdGenerator;
+import com.link.im.entity.group.GroupInfo;
 import com.link.im.enums.gloabl.GlobalCode;
-import com.link.im.mongo.BaseMongoService;
+import com.link.im.mongo.BasePlatFormMongoService;
 import com.link.im.entity.chat.ChatMember;
 import com.link.im.entity.chat.ChatSession;
 import com.link.im.entity.user.UserInfo;
-import com.link.im.util.R;
+import com.link.im.util.ApiResult;
 import com.link.restapi.chat.model.dto.LinkCreateChatDto;
 import com.link.restapi.chat.model.dto.LinkPullChatDTO;
 import com.link.restapi.chat.model.vo.LinkChatSessionVo;
-import com.link.util.id.ChatIdGenerator;
+
 import org.bson.types.ObjectId;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -27,41 +31,96 @@ import java.util.stream.Collectors;
  * @CreateTime: 2026年06月22日
  */
 @Component
-public class ChatSessionService extends BaseMongoService<ChatSession> {
-    public R pullChat(LinkPullChatDTO dto) {
-        Query eq = eq( where(col(ChatMember::getOwnerId))
-                .is(new ObjectId(dto.getUserId()))
-        );
-        eq.skip(dto.getSkip());
-        eq.limit(dto.getLimit());
-        List<ChatMember> chatMembers = this.getMongoTemplate().find(eq, ChatMember.class);
+public class ChatSessionService extends BasePlatFormMongoService<ChatSession> {
+    public ApiResult pullChat(LinkPullChatDTO dto) {
+        if (StringUtils.isEmpty(dto.getUserId()))
+            return ApiResult.error(GlobalCode.PARAMETER_VALIDATOR_ERROR);
+        if (!pageValidator(dto.getSkip(), dto.getLimit()))
+            return ApiResult.error(GlobalCode.PARAMETER_VALIDATOR_ERROR);
 
-        Map<String, ChatMember> sessionMap = chatMembers.stream().collect(Collectors.toMap(ChatMember::getChatId,
-                Function.identity()));
-        Map<ObjectId, ChatMember> memberMap = chatMembers.stream().collect(Collectors.toMap(ChatMember::getTargetId,
-                Function.identity()));
-        List<ChatSession> chatSessions = this.find(eq( where(col(ChatSession::getChatId))
-                .in(sessionMap.keySet())));
-        Map<String, ChatSession> map = chatSessions.stream().collect(Collectors.toMap(ChatSession::getChatId,
-                Function.identity()));
-        List<UserInfo> userInfos = this.getMongoTemplate().find(eq( where(col(UserInfo::getId)).in(memberMap.keySet())),
-                UserInfo.class);
+        // 1. 拉取该用户收件箱里的会话条目（分页），按最近活跃倒序
+        Query memberQuery = eq(where(colOf(ChatMember::getOwnerId)).is(new ObjectId(dto.getUserId())));
+        memberQuery.with(Sort.by(
+                Sort.Direction.DESC, colOf(ChatMember::getUpdatedTime)));
+        memberQuery.skip(dto.getSkip());
+        memberQuery.limit(dto.getLimit());
+        List<ChatMember> chatMembers = this.getMongoTemplate().find(memberQuery, ChatMember.class);
+        if (chatMembers.isEmpty())
+            return ApiResult.success().setData(new ArrayList<LinkChatSessionVo>());
 
-        return R.ok().setData(createChatInfoVos(userInfos, memberMap, map));
+        // 2. 按类型拆分：单聊取对端 UserInfo，群聊取 GroupInfo
+        List<ObjectId> singleTargetIds = chatMembers.stream()
+                .filter(item -> item.getType() == ChatMember.TYPE_SINGLE)
+                .map(ChatMember::getTargetId)
+                .collect(Collectors.toList());
+        List<ObjectId> groupTargetIds = chatMembers.stream()
+                .filter(item -> item.getType() == ChatMember.TYPE_GROUP)
+                .map(ChatMember::getTargetId)
+                .collect(Collectors.toList());
+
+        // 3. 会话级信息（lastMsgSeq/summary/time、type），按 chatId 批量取
+        List<String> chatIds = chatMembers.stream()
+                .map(ChatMember::getChatId)
+                .collect(Collectors.toList());
+        Query sessionQuery = eq(where(col(ChatSession::getChatId)).in(chatIds));
+        Map<String, ChatSession> sessionMap = this.find(sessionQuery).stream()
+                .collect(Collectors.toMap(ChatSession::getChatId, Function.identity()));
+
+        // 4. 单聊对端用户：昵称、头像
+        Map<ObjectId, UserInfo> userMap;
+        if (singleTargetIds.isEmpty()) {
+            userMap = java.util.Collections.emptyMap();
+        } else {
+            Query userQuery = eq(where(colOf(UserInfo::getId)).in(singleTargetIds));
+            userQuery.fields().include(colOf(UserInfo::getNickname), colOf(UserInfo::getAvatar));
+            userMap = this.getMongoTemplate().find(userQuery, UserInfo.class).stream()
+                    .collect(Collectors.toMap(UserInfo::getId, Function.identity()));
+        }
+
+        // 5. 群聊群信息：标题、头像
+        Map<ObjectId, GroupInfo> groupMap;
+        if (groupTargetIds.isEmpty()) {
+            groupMap = java.util.Collections.emptyMap();
+        } else {
+            Query groupQuery = eq(where(colOf(GroupInfo::getId)).in(groupTargetIds));
+            groupQuery.fields().include(colOf(GroupInfo::getTitle), colOf(GroupInfo::getAvatar));
+            groupMap = this.getMongoTemplate().find(groupQuery, GroupInfo.class).stream()
+                    .collect(Collectors.toMap(GroupInfo::getId, Function.identity()));
+        }
+
+        List<LinkChatSessionVo> vos = createChatInfoVos(chatMembers, sessionMap, userMap, groupMap);
+        return ApiResult.success().setData(vos);
     }
 
-    private static List<LinkChatSessionVo> createChatInfoVos(List<UserInfo> userInfos, Map<ObjectId, ChatMember> memberMap, Map<String, ChatSession> map) {
-        List<LinkChatSessionVo> vos = userInfos.stream().map(item -> {
-            ChatMember member = memberMap.get(item.getId());
-            ChatSession session = map.get(member.getChatId());
-            return new LinkChatSessionVo().createVo(session,member,item);
-        }).collect(Collectors.toList());
+    private static List<LinkChatSessionVo> createChatInfoVos(List<ChatMember> chatMembers,
+                                                             Map<String, ChatSession> sessionMap,
+                                                             Map<ObjectId, UserInfo> userInfoMap,
+                                                             Map<ObjectId, GroupInfo> groupInfoMap) {
+        List<LinkChatSessionVo> vos = new ArrayList<>(chatMembers.size());
+        for (ChatMember member : chatMembers) {
+            ChatSession session = sessionMap.get(member.getChatId());
+            // 会话级信息缺失（理论上不该发生）时跳过，避免渲染出空会话
+            if (session == null)
+                continue;
+
+            if (member.getType() == ChatMember.TYPE_GROUP) {
+                GroupInfo group = groupInfoMap.get(member.getTargetId());
+                if (group == null)
+                    continue;
+                vos.add(new LinkChatSessionVo().createGroupVo(session, member, group));
+            } else {
+                UserInfo user = userInfoMap.get(member.getTargetId());
+                if (user == null)
+                    continue;
+                vos.add(new LinkChatSessionVo().createSingleVo(session, member, user));
+            }
+        }
         return vos;
     }
 
-    public R createChat(LinkCreateChatDto dto) {
+    public ApiResult createChat(LinkCreateChatDto dto) {
         if (StringUtils.isEmpty(dto.getUserId()) || StringUtils.isEmpty(dto.getTargetId()))
-            return R.error(GlobalCode.PARAMETER_VALIDATOR_ERROR);
+            return ApiResult.error(GlobalCode.PARAMETER_VALIDATOR_ERROR);
 
         String chatId = ChatIdGenerator.nextId(dto.getUserId(), dto.getTargetId());
         ChatSession session = new ChatSession().createSingle(chatId);
@@ -80,7 +139,7 @@ public class ChatSessionService extends BaseMongoService<ChatSession> {
                 .returnNew(true);
         this.findAndModify(eq,update,options);
         this.getMongoTemplate().insert(member);
-        return R.ok();
+        return ApiResult.success();
     }
 
 

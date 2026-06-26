@@ -1,6 +1,6 @@
 package com.link.restapi.user.controller;
 
-import com.link.im.util.R;
+import com.link.im.util.ApiResult;
 
 import com.link.restapi.user.model.dto.LinkUserAuthDTO;
 
@@ -24,17 +24,17 @@ public class LinkUserInfoCtrl {
 
 
     @PostMapping("/search-user")
-    public R searchFriend(@RequestParam String userNo){
+    public ApiResult searchFriend(@RequestParam String userNo){
         return userInfoService.searchUser(userNo);
     }
 
     @PostMapping("/auth")
-    public R userAuth(@RequestBody LinkUserAuthDTO dto){
+    public ApiResult userAuth(@RequestBody LinkUserAuthDTO dto){
         return userInfoService.userAuth(dto);
     }
 
     @PostMapping("/register")
-    public R userRegister(@RequestBody LinkUserRegisterDTO dto){
+    public ApiResult userRegister(@RequestBody LinkUserRegisterDTO dto){
         return userInfoService.userRegister(dto);
     }
 

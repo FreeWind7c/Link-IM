@@ -5,12 +5,13 @@ import com.link.core.config.LinkCoreConfig;
 import com.link.common.core.event.EventType;
 import com.link.core.event.handler.EventHandler;
 
-import com.link.im.mongo.BaseMongoService;
+import com.link.core.util.seq.MessageSeqAllocator;
+import com.link.im.mongo.BasePlatFormMongoService;
 import com.link.im.entity.chat.ChatSession;
 import com.link.im.entity.message.DefaultMessageInfo;
 import com.link.im.entity.message.type.MessageType;
 import com.link.im.processor.message.LinkDefaultMessageProcessor;
-import com.link.util.seq.MessageSeqAllocator;
+
 import io.netty.channel.Channel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +25,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
-public class LinkDefaultMessageEventHandler extends BaseMongoService<DefaultMessageInfo> implements EventHandler  {
+public class LinkDefaultMessageEventHandler extends BasePlatFormMongoService<DefaultMessageInfo> implements EventHandler  {
 
     @Autowired
     private LinkCoreConfig config;

@@ -26,7 +26,7 @@ import java.util.List;
  * @param <T> 该 service 主要操作的实体类型
  */
 @Slf4j
-public abstract class BaseMongoService<T> {
+public abstract class BasePlatFormMongoService<T> {
 
     @Autowired
     protected MongoTemplate mongo;
@@ -39,7 +39,7 @@ public abstract class BaseMongoService<T> {
 
 
     @SuppressWarnings("unchecked")
-    protected BaseMongoService() {
+    protected BasePlatFormMongoService() {
         Type superclass = getClass().getGenericSuperclass();
         if (!(superclass instanceof ParameterizedType)) {
             throw new IllegalStateException(
