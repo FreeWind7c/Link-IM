@@ -24,6 +24,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -62,7 +63,7 @@ public class FriendInfoService extends BasePlatFormMongoService<FriendInfo> {
         request.setCreatedTime(now());
         request.setUpdatedTime(now());
         this.getMongoTemplate().insert(request);
-        this.pushPublisher.push(dto.getFriendId(), EventType.ADD_FRIEND, linkFriend);
+        this.pushPublisher.push(Arrays.asList(dto.getFriendId()), EventType.ADD_FRIEND, linkFriend);
         return ApiResult.success(FriendInfoCode.NOTIFY_USER);
     }
     public ApiResult queryFriend(String userId) {
@@ -130,9 +131,9 @@ public class FriendInfoService extends BasePlatFormMongoService<FriendInfo> {
 
         // 无论新增还是恢复，双方都需要同步好友关系
         LinkApproveFriend notifySelf = new LinkApproveFriend(dto.getUserId(), dto.getFriendId());
-        this.pushPublisher.push(dto.getUserId(), EventType.APPROVE_FRIEND, notifySelf);
+        this.pushPublisher.push(Arrays.asList(dto.getUserId()), EventType.APPROVE_FRIEND, notifySelf);
         LinkApproveFriend notifyFriend = new LinkApproveFriend(dto.getFriendId(), dto.getUserId());
-        this.pushPublisher.push(dto.getFriendId(), EventType.APPROVE_FRIEND, notifyFriend);
+        this.pushPublisher.push(Arrays.asList(dto.getFriendId()), EventType.APPROVE_FRIEND, notifyFriend);
         return ApiResult.success();
     }
 }

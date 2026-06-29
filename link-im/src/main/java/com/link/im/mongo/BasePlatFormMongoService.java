@@ -34,7 +34,7 @@ public abstract class BasePlatFormMongoService<T> {
     /**
      * 子类传入的实体类型，构造时通过反射解析得到
      */
-    protected final Class<T> entityClass;
+    protected final Class<T> ENTITY_CLASS;
 
 
 
@@ -46,8 +46,9 @@ public abstract class BasePlatFormMongoService<T> {
                     getClass().getName() + " 继承 LinkMongoService 时必须指定实体泛型，如 extends LinkMongoService<UserInfo>");
         }
         Type[] args = ((ParameterizedType) superclass).getActualTypeArguments();
-        this.entityClass = (Class<T>) args[0];
+        this.ENTITY_CLASS = (Class<T>) args[0];
     }
+
 
     public static boolean pageValidator(int skip,int limit){
         if (skip < 0 || limit <=0)
@@ -82,33 +83,33 @@ public abstract class BasePlatFormMongoService<T> {
     }
 
     protected T findOne(Query query) {
-        return mongo.findOne(query, entityClass);
+        return mongo.findOne(query, ENTITY_CLASS);
     }
 
     protected T findById(Object id) {
-        return mongo.findById(id, entityClass);
+        return mongo.findById(id, ENTITY_CLASS);
     }
 
 
 
     protected T findAndModify(Query eq, Update update, FindAndModifyOptions options) {
-       return mongo.findAndModify(eq, update, options, entityClass);
+       return mongo.findAndModify(eq, update, options, ENTITY_CLASS);
     }
 
     protected List<T> find(Query query) {
-        return mongo.find(query, entityClass);
+        return mongo.find(query, ENTITY_CLASS);
     }
 
     protected List<T> findAll() {
-        return mongo.findAll(entityClass);
+        return mongo.findAll(ENTITY_CLASS);
     }
 
     protected boolean exists(Query query) {
-        return mongo.exists(query, entityClass);
+        return mongo.exists(query, ENTITY_CLASS);
     }
 
     protected long count(Query query) {
-        return mongo.count(query, entityClass);
+        return mongo.count(query, ENTITY_CLASS);
     }
 
     protected T save(T entity) {
@@ -120,15 +121,15 @@ public abstract class BasePlatFormMongoService<T> {
     }
 
     protected long updateFirst(Query query, Update update) {
-        return mongo.updateFirst(query, update, entityClass).getModifiedCount();
+        return mongo.updateFirst(query, update, ENTITY_CLASS).getModifiedCount();
     }
 
     protected long updateMulti(Query query, Update update) {
-        return mongo.updateMulti(query, update, entityClass).getModifiedCount();
+        return mongo.updateMulti(query, update, ENTITY_CLASS).getModifiedCount();
     }
 
     protected long remove(Query query) {
-        return mongo.remove(query, entityClass).getDeletedCount();
+        return mongo.remove(query, ENTITY_CLASS).getDeletedCount();
     }
 
 
@@ -184,7 +185,7 @@ public abstract class BasePlatFormMongoService<T> {
         String field = col(column);
         for (int i = 0; i < maxRetry; i++) {
             String candidate = supplier.get();
-            if (!mongo.exists(new Query(Criteria.where(field).is(candidate)), entityClass)) {
+            if (!mongo.exists(new Query(Criteria.where(field).is(candidate)), ENTITY_CLASS)) {
                 return candidate;
             }
         }

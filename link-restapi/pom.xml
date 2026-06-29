@@ -50,7 +50,7 @@
         </dependency>
         <!--
           推送发布端：HTTP 动作（如好友通过）需触发在线推送，但本进程不持长连接。
-          改为发布 PushCommand 到 RabbitMQ，由持连的 Netty 进程（经 link-consumer）消费后真正下发。
+          改为发布 DirectPushCommand 到 RabbitMQ，由持连的 Netty 进程（经 link-consumer）消费后真正下发。
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

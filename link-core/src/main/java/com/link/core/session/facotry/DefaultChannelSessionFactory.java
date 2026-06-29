@@ -16,13 +16,7 @@ import java.net.InetSocketAddress;
 
 public class DefaultChannelSessionFactory implements LinkSessionFactory{
 
-
-
     private LinkCoreConfig config;
-
-
-
-
 
     public DefaultChannelSessionFactory(LinkCoreConfig config) {
         this.config = config;

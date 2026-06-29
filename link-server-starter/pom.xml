@@ -30,7 +30,7 @@
         </dependency>
         <!--
           引入 MQ 消费层：link-consumer 的 @RabbitListener 监听器随本进程（持有 Netty 长连接）启动，
-          消费 restapi 投递的 PushCommand 后调 LinkMessageSender 完成在线推送。
+          消费 restapi 投递的 DirectPushCommand 后调 LinkMessageSender 完成在线推送。
           消费者必须与 sessionMap / Channel 同 JVM——这正是它挂在本接入进程而非 restapi 的原因。
         -->
         <dependency>

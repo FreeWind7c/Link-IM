@@ -8,7 +8,7 @@ import com.link.im.enums.BaseEnum;
  */
 public enum GroupInfoCode implements BaseEnum {
 
-    GROUP_CREATE_SUCCESS(12000,"群聊创建成功");
+    GROUP_CREATE_SUCCESS(12000,"群聊创建成功"), GROUP_NOT_EXIST(12001,"群不存在" ), GROUP_MEMBER_NOT_EXIST(12003, "群成员不存在");
 
     private int code;
 

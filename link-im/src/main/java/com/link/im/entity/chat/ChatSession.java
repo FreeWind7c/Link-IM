@@ -3,7 +3,6 @@ package com.link.im.entity.chat;
 import com.link.im.entity.base.BaseEntity;
 import lombok.Data;
 import lombok.experimental.Accessors;
-import org.bson.types.ObjectId;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -17,9 +16,9 @@ import org.springframework.data.mongodb.core.mapping.Field;
  * 最后一条时间。它不区分是谁的视角，因此<b>单聊也只有一条</b>（双方共享），
  * 群聊同样只有一条（全员共享）。
  *
- * <p>和 {@link ChatMember} 的分工：本表存「会话说到哪了」，{@link ChatMember} 存
+ * <p>和 {@link ChatSessionMember} 的分工：本表存「会话说到哪了」，{@link ChatSessionMember} 存
  * 「某个人读到哪了」。未读数不落库，由二者实时相减得出：
- * {@code unread = ChatSession.lastMsgSeq - ChatMember.lastReadSeq}。
+ * {@code unread = ChatSession.lastMsgSeq - ChatSessionMember.lastReadSeq}。
  *
  * <p>写入时机：<b>每收到一条消息</b>由消息流更新 {@code lastMsgSeq/summary/time}。
  * 因为无论单聊群聊都只有一条记录，所以群聊 N 人发一条消息，这里也只写 1 次，

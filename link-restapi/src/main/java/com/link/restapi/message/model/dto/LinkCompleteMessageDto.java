@@ -3,20 +3,20 @@ package com.link.restapi.message.model.dto;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
-import javax.swing.plaf.ProgressBarUI;
-
 /**
  * @Author: 无敌代码写手
- * @CreateTime: 2026年06月23日
+ * @CreateTime: 2026年06月26日
  */
 @Data
 @Accessors(chain = true)
-public class LinkPullMessageDto {
+public class LinkCompleteMessageDto {
+
     private String chatId;
 
     private int sessionType;
 
-    private int skip;
+    private int from;
 
-    private int limit;
+    private int to;
+
 }

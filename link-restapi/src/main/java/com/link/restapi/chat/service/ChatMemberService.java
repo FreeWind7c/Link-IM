@@ -1,7 +1,7 @@
 package com.link.restapi.chat.service;
 
 
-import com.link.im.entity.chat.ChatMember;
+import com.link.im.entity.chat.ChatSessionMember;
 import com.link.im.mongo.BasePlatFormMongoService;
 import com.link.im.util.ApiResult;
 import com.link.restapi.chat.model.dto.LinkReportSessionDto;
@@ -19,24 +19,24 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
-public class ChatMemberService extends BasePlatFormMongoService<ChatMember> {
+public class ChatMemberService extends BasePlatFormMongoService<ChatSessionMember> {
 
 
 
     public ApiResult reportSession(LinkReportSessionDto dto) {
 
         Query eq = eq(
-                where(col(ChatMember::getOwnerId)).is(new ObjectId(dto.getUserId()))
-                        .and(col(ChatMember::getChatId)).is(dto.getChatId())
+                where(col(ChatSessionMember::getOwnerId)).is(new ObjectId(dto.getUserId()))
+                        .and(col(ChatSessionMember::getChatId)).is(dto.getChatId())
         );
 
-        Update update = update().set(col(ChatMember::getLastReadSeq), dto.getLastReadSeq());
+        Update update = update().set(col(ChatSessionMember::getLastReadSeq), dto.getLastReadSeq());
 
 FindAndModifyOptions options = new FindAndModifyOptions();
         options.upsert(true);
         options.returnNew(true);
 
-        ChatMember member = this.findAndModify(eq, update, options);
+        ChatSessionMember member = this.findAndModify(eq, update, options);
 
         return ApiResult.success();
     }

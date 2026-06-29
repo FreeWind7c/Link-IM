@@ -1,6 +1,7 @@
 package com.link.restapi.message.controller;
 
 import com.link.im.util.ApiResult;
+import com.link.restapi.message.model.dto.LinkCompleteMessageDto;
 import com.link.restapi.message.model.dto.LinkPullMessageDto;
 import com.link.restapi.message.service.MessageInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,9 +23,16 @@ public class LinkMessageInfoController {
     private MessageInfoService messageInfoService;
 
 
+
+
     @PostMapping("/pull-message")
     public ApiResult pullMessage(@RequestBody LinkPullMessageDto dto)
     {
         return messageInfoService.pullMessage(dto);
+    }
+
+    @PostMapping("/complete-message")
+    public ApiResult completeMessage(@RequestBody LinkCompleteMessageDto dto){
+        return messageInfoService.completeMessage(dto);
     }
 }

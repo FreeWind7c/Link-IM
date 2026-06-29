@@ -30,6 +30,8 @@ public class LinkCoreConfig {
 
     private int port = 8899;
 
+    private int groupPushLimit = 50;
+
     // ---- 承载协议 ----
 
     /** 对外协议：TCP 或 WEBSOCKET。底层编解码与业务 handler 完全复用，仅 pipeline 前端不同。 */
@@ -44,6 +46,9 @@ public class LinkCoreConfig {
     private int bossGroupThreadCore = 1;
 
     private int soBackLog = 10240;
+
+    private int workerGroupThreadCore = Runtime.getRuntime().availableProcessors() * 2;
+
 
     private boolean soReuseAddr = true;
 
@@ -77,8 +82,6 @@ public class LinkCoreConfig {
      * setLinkSerializer 注入带适配器的实例覆盖（见 link-im 的序列化配置）。
      */
     private LinkSerializer linkSerializer = new LinkJsonSerializer();
-
-
 
     private LinkSessionManager sessionManager = new DefaultChannelSessionManager();
 

@@ -4,8 +4,7 @@ import com.link.common.core.event.EventType;
 import com.link.common.redis.RedisConstant;
 import com.link.core.config.LinkCoreConfig;
 import com.link.core.session.service.LinkSession;
-import com.link.im.entity.chat.ChatMember;
-import com.link.im.entity.chat.ChatSession;
+import com.link.im.entity.chat.ChatSessionMember;
 import com.link.im.entity.message.AbstractMessage;
 import com.link.im.entity.message.DefaultMessageInfo;
 import com.link.im.entity.message.GroupMessageInfo;
@@ -16,7 +15,6 @@ import io.netty.channel.Channel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -47,13 +45,13 @@ public class LinkGroupMessageProcessor extends BasePlatFormMongoService<DefaultM
         if (memberIds == null || memberIds.isEmpty())
         {
                 Query eq = eq(
-                        where(col(ChatMember::getChatId)).is(message.getChatId())
+                        where(col(ChatSessionMember::getChatId)).is(message.getChatId())
                 );
-                eq.fields().include(col(ChatMember::getOwnerId));
-                List<ChatMember> chatMembers = this.getMongoTemplate().find(eq, ChatMember.class);
-                if (chatMembers == null || chatMembers.isEmpty())
+                eq.fields().include(col(ChatSessionMember::getOwnerId));
+                List<ChatSessionMember> chatSessionMembers = this.getMongoTemplate().find(eq, ChatSessionMember.class);
+                if (chatSessionMembers == null || chatSessionMembers.isEmpty())
                     return;
-                memberIds = chatMembers.stream().map(item -> { return item.getOwnerId().toString();
+                memberIds = chatSessionMembers.stream().map(item -> { return item.getOwnerId().toString();
                 }).collect(Collectors.toSet());
                 redisTemplate.opsForSet().add(RedisConstant.GROUP_MEMBER+message.getChatId()
                         ,memberIds.toArray(new String[0]));

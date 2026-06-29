@@ -20,7 +20,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
 @Accessors(chain = true)
 @Document(collection = GroupMember.COLLECTION_NAME)
 @CompoundIndexes({
-        @CompoundIndex(name = "idx_user_group", def = "{'user_id':1,'group_id':1}",unique = true)
+        @CompoundIndex(name = "idx_group_user", def = "{'group_id':1,'user_id':1}",unique = true)
 })
 public class GroupMember extends BaseEntity {
 
@@ -56,12 +56,21 @@ public class GroupMember extends BaseEntity {
     @Field("no_speaking_until")
     private long noSpeakingUntil;
 
-    public GroupMember create(String userId, String nickname, String ownerId, int role) {
+    public GroupMember create(String groupId,String userId, String inviterUserId, int role) {
         return this.setUserId(new ObjectId(userId))
                 .setRole(role)
-                .setNickname(nickname)
+                .setGroupId(new ObjectId(groupId))
                 .setSource(GroupSourceConstant.INITIAL_MEMBER)
-                .setInviterUserId(new ObjectId(ownerId))
+                .setInviterUserId(new ObjectId(inviterUserId))
+                .setForeverSilence(false)
+                .setNoSpeakingUntil(0L);
+    }
+
+    public GroupMember create(String userId, String inviterUserId, int role) {
+        return this.setUserId(new ObjectId(userId))
+                .setRole(role)
+                .setSource(GroupSourceConstant.INITIAL_MEMBER)
+                .setInviterUserId(new ObjectId(inviterUserId))
                 .setForeverSilence(false)
                 .setNoSpeakingUntil(0L);
     }

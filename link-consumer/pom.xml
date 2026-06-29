@@ -19,7 +19,7 @@
       （LinkImApplication，扫描 com.link）启动，从而与 LinkCoreConfig / sessionMap 同处一个 JVM——
       这是它能真正 channel.write() 的前提：Channel 是堆内活对象，无法跨进程传递，推送只能在持连进程执行。
 
-      不依赖 link-restapi（避免把 HTTP 业务拖进 Netty 进程）；PushCommand 等契约类放在 link-common，两端共享。
+      不依赖 link-restapi（避免把 HTTP 业务拖进 Netty 进程）；DirectPushCommand 等契约类放在 link-common，两端共享。
       不打可执行 jar（无 spring-boot-maven-plugin），保持普通 jar 供 server-starter 聚合。
     -->
     <dependencies>

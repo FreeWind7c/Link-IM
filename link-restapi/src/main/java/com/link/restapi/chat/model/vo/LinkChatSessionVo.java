@@ -1,6 +1,6 @@
 package com.link.restapi.chat.model.vo;
 
-import com.link.im.entity.chat.ChatMember;
+import com.link.im.entity.chat.ChatSessionMember;
 import com.link.im.entity.chat.ChatSession;
 import com.link.im.entity.group.GroupInfo;
 import com.link.im.entity.user.UserInfo;
@@ -52,13 +52,16 @@ public class LinkChatSessionVo {
     /** 是否从聊天栏移除（owner 私有）。仅隐藏列表项，不删历史消息；再次收到消息会重新出现。 */
     private boolean hidden;
 
+    private boolean active;
+
 
     /** 单聊：title/avatar 取对端用户的昵称、头像。 */
-    public LinkChatSessionVo createSingleVo(ChatSession session, ChatMember member, UserInfo user) {
+    public LinkChatSessionVo createSingleVo(ChatSession session, ChatSessionMember member, UserInfo user) {
         return this.setChatId(session.getChatId())
                 .setType(session.getType())
                 .setTitle(user.getNickname())
                 .setAvatar(user.getAvatar())
+                .setActive(member.isActive())
                 .setOwnerId(member.getOwnerId().toHexString())
                 .setTargetId(member.getTargetId().toHexString())
                 .setLastMsgSummary(session.getLastMsgSummary())
@@ -72,10 +75,11 @@ public class LinkChatSessionVo {
     }
 
     /** 群聊：title/avatar 取群的标题、头像。 */
-    public LinkChatSessionVo createGroupVo(ChatSession session, ChatMember member, GroupInfo group) {
+    public LinkChatSessionVo createGroupVo(ChatSession session, ChatSessionMember member, GroupInfo group) {
         return this.setChatId(session.getChatId())
                 .setType(session.getType())
                 .setTitle(group.getTitle())
+                .setActive(member.isActive())
                 .setAvatar(group.getAvatar())
                 .setOwnerId(member.getOwnerId().toHexString())
                 .setTargetId(member.getTargetId().toHexString())

@@ -2,6 +2,7 @@ package com.link.restapi.message.model.vo;
 
 import com.link.im.entity.base.BaseData;
 import com.link.im.entity.message.DefaultMessageInfo;
+import com.link.im.entity.message.GroupMessageInfo;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.springframework.beans.BeanUtils;
@@ -12,7 +13,7 @@ import org.springframework.beans.BeanUtils;
  */
 @Data
 @Accessors(chain = true)
-public class LinkDefaultMessageVo {
+public class LinkMessageInfoVo {
 
     private String id;
 
@@ -33,8 +34,14 @@ public class LinkDefaultMessageVo {
     private long timestamp;
 
     /** 由消息实体拷贝出展示 VO。 */
-    public static LinkDefaultMessageVo from(DefaultMessageInfo message) {
-        LinkDefaultMessageVo vo = new LinkDefaultMessageVo();
+    public static LinkMessageInfoVo from(DefaultMessageInfo message) {
+        LinkMessageInfoVo vo = new LinkMessageInfoVo();
+        BeanUtils.copyProperties(message, vo);
+        return vo;
+    }
+
+    public static LinkMessageInfoVo from(GroupMessageInfo message) {
+        LinkMessageInfoVo vo = new LinkMessageInfoVo();
         BeanUtils.copyProperties(message, vo);
         return vo;
     }

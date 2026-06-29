@@ -2,7 +2,7 @@ package com.link.consumer.listener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.link.common.core.event.EventType;
-import com.link.common.core.mq.PushCommand;
+import com.link.common.core.mq.DirectPushCommand;
 import com.link.common.core.mq.PushMqConst;
 import com.link.im.service.LinkMessageSender;
 import lombok.extern.slf4j.Slf4j;
@@ -40,13 +40,13 @@ public class PushCommandListener {
 
     @RabbitListener(bindings = @QueueBinding(
             // 匿名队列：名字交给 broker 生成；exclusive + autoDelete，本节点专属、连接断即删
-            value = @Queue,
+            value = @Queue(value = PushMqConst.DIRECT_EVENT_PUSH_QUEUE),
             // 持久 fanout 交换机；durable=true 与发布端一致，避免 broker 重启后类型/属性不符
-            exchange = @Exchange(value = PushMqConst.PUSH_FANOUT_EXCHANGE, type = "fanout", durable = "true")
+            exchange = @Exchange(value = PushMqConst.LINK_EVENT_EXCHANGE, type = "fanout", durable = "true")
     ))
-    public void onPushCommand(PushCommand cmd) {
+    public void onPushCommand(DirectPushCommand cmd) {
         if (cmd == null || cmd.getUserId() == null) {
-            log.warn("收到非法 PushCommand，丢弃：{}", cmd);
+            log.warn("收到非法 DirectPushCommand，丢弃：{}", cmd);
             return;
         }
 
@@ -63,12 +63,12 @@ public class PushCommandListener {
             payload = objectMapper.readValue(cmd.getPayloadJson(), payloadClass);
         } catch (Exception e) {
             // payload 还原失败属脏数据，记日志丢弃即可——重试也不会变好，不要重回队列打转
-            log.error("还原 PushCommand payload 失败，丢弃。type={}, userId={}",
+            log.error("还原 DirectPushCommand payload 失败，丢弃。type={}, userId={}",
                     cmd.getPayloadType(), cmd.getUserId(), e);
             return;
         }
 
-
+        log.info("收到事件->{},数据->{}",eventType,payload.toString());
         // 本节点持有该用户连接则真正下发；否则 sender 内部 no-op（广播下的正常情况）
         this.sender.send(cmd.getUserId(), eventType, payload);
     }

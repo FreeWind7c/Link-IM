@@ -62,7 +62,7 @@ public class DefaultServer implements ApplicationRunner {
             bossGroup = new NioEventLoopGroup(this.config.getBossGroupThreadCore());
         }
         if (workerGroup == null){
-            workerGroup = new NioEventLoopGroup();
+            workerGroup = new NioEventLoopGroup(this.config.getWorkerGroupThreadCore());
         }
         if (bootstrap == null){
             bootstrap = new ServerBootstrap();

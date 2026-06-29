@@ -1,0 +1,21 @@
+package com.link.restapi.group.model.dto;
+
+import lombok.Data;
+import lombok.experimental.Accessors;
+
+import java.util.List;
+
+/**
+ * @Author: 无敌代码写手
+ * @CreateTime: 2026年06月27日
+ */
+@Data
+@Accessors(chain = true)
+public class LinkAddGroupAdministratorDto {
+
+    private String groupId;
+
+    private String userId;
+
+    private List<String> administratorId;
+}

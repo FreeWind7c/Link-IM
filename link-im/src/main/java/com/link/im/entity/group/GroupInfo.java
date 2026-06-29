@@ -11,6 +11,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * @Author: 无敌代码写手
@@ -51,7 +52,7 @@ public class GroupInfo extends BaseEntity {
     private int groupMemberSize;
 
     @Field("admin_user_ids")
-    private List<String> adminUserIds;
+    private Set<String> adminUserIds;
 
     public GroupInfo create(String ownerId, String ownerName, List<ObjectId> memberIds) {
         return this.setTitle(ownerName+"的群聊")

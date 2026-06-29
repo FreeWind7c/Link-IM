@@ -30,10 +30,7 @@ public class UserInfoService extends BasePlatFormMongoService<UserInfo> {
             return ApiResult.error(UserAuthCode.USER_DOES_NOT_EXIST);
         if (!MD5Util.verify(dto.getPassword(),user.getPassword()))
             return ApiResult.error(UserAuthCode.USER_PASSWORD_ERROR);
-        // 异地登录策略统一在连接层处理：DefaultChannelSessionManager.addSession 对「同 userId+同 platform」
-        // 踢旧——后登录的设备顶掉先登录的同端设备。此处 HTTP 登录是无状态的，只验密码发令牌，
-        // 不再查在线 session（restapi 进程不持长连接、sessionMap 恒空，查了也永远失效，
-        // 且与连接层的「踢旧」策略相反，会造成代码意图与真实行为不一致）。
+
         user.setLoginTime(System.currentTimeMillis());
         return ApiResult.success(UserAuthCode.LOGIN_SUCCESS).setData(LinkUserInfoVO.from(user)).setToken(createToken(user,dto.getPlatform()));
     }

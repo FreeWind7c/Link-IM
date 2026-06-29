@@ -19,7 +19,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
  *
  * <p>和 {@link ChatSession} 的分工：{@link ChatSession} 存「会话说到哪了」（全员共享），
  * 本表存「我读到哪了」（每人私有）。<b>未读数不在本表存储</b>，实时算出：
- * {@code unread = ChatSession.lastMsgSeq - ChatMember.lastReadSeq}。这样收消息时不必
+ * {@code unread = ChatSession.lastMsgSeq - ChatSessionMember.lastReadSeq}。这样收消息时不必
  * 给每个成员写未读，群聊也没有按成员数放大的写入。
  *
  * <p>写入时机：
@@ -35,15 +35,17 @@ import org.springframework.data.mongodb.core.mapping.Field;
  */
 @Data
 @Accessors(chain = true)
-@Document(collection = ChatMember.COLLECTION_NAME)
+@Document(collection = ChatSessionMember.COLLECTION_NAME)
 @CompoundIndexes({
         @CompoundIndex(name = "idx_owner_chat", def = "{'owner_id':1,'chat_id':1}", unique = true),
         @CompoundIndex(name = "idx_owner_target", def = "{'owner_id':1,'target_id':1}", unique = true),
+        @CompoundIndex(name = "idx_target_owner", def = "{'target_id':1,'owner_id':1}", unique = true),
+
         @CompoundIndex(name = "idx_owner_seq", def = "{'owner_id':1,'last_read_seq':1}"),
         @CompoundIndex(name = "idx_owner_top", def = "{'owner_id':1,'show_top':1}")
 })
-public class ChatMember extends BaseEntity {
-    public static final String COLLECTION_NAME = "chat_member";
+public class ChatSessionMember extends BaseEntity {
+    public static final String COLLECTION_NAME = "chat_session_member";
 
     /** 单聊 */
     public static final int TYPE_SINGLE = 1;
@@ -80,10 +82,13 @@ public class ChatMember extends BaseEntity {
     /** 是否从聊天栏移除（owner 私有）。仅隐藏列表项，不删历史消息；再次收到消息会重新出现。 */
     private boolean hidden;
 
+    // 是否有收发能力
+    private boolean active = true;
+
     /**
      * 创建单聊收件箱条目。chatId 由调用方按排序规则算好后传入，保证双方一致。
      */
-    public ChatMember createSingle(String ownerId, String targetId, String chatId) {
+    public ChatSessionMember createSingle(String ownerId, String targetId, String chatId) {
         return this.setOwnerId(new ObjectId(ownerId))
                 .setTargetId(new ObjectId(targetId))
                 .setChatId(chatId)
@@ -93,7 +98,8 @@ public class ChatMember extends BaseEntity {
     /**
      * 创建群聊收件箱条目。targetId 即 groupId，chatId 形如 group_{groupId}。
      */
-    public ChatMember createGroup(String ownerId, String groupId, String chatId) {
+    public ChatSessionMember createGroup(String ownerId, String groupId, String chatId) {
+
         return this.setOwnerId(new ObjectId(ownerId))
                 .setTargetId(new ObjectId(groupId))
                 .setChatId(chatId)

@@ -29,7 +29,7 @@ public class PushMqConfig {
     }
 
     /**
-     * 消息转换器：让 PushCommand 以 JSON 收发（与发布端一致）。
+     * 消息转换器：让 DirectPushCommand 以 JSON 收发（与发布端一致）。
      * 声明为 Bean 后，Spring Boot 自动配置的监听容器工厂会采用它。
      */
     @Bean

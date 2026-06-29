@@ -36,12 +36,15 @@ public class LinkGroupBroadcaster {
     public void broadcast(EventType event, List<Channel> channels, Object obj){
         if (channels == null || channels.isEmpty())
             return;
+
         GroupMessageInfo message = (GroupMessageInfo) obj;
-        log.info("send:"+message.getId());
         byte[] body = this.config.getLinkSerializer().serialize(message);
+        broadcast(event, channels, body);
+    }
+
+    public void broadcast(EventType event, List<Channel> channels, byte[] body) {
         PackData packData = new PackData(event.getAction(), body.length, body);
         ByteBuf frame = PooledByteBufAllocator.DEFAULT.buffer(LinkCoreConfig.PROTO_FRAME_LENGTH + body.length);
-
         try{
             this.encoder.encode(packData,frame);
             IdentityHashMap<EventLoop, List<Channel>> eventMap = new IdentityHashMap<>();

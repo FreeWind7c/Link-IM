@@ -12,7 +12,6 @@ public abstract class AbstractSession<C extends LinkCoreConfig> implements LinkS
     protected String sessionId;
     protected String host;
     protected int port;
-
     protected boolean auth;
 
     protected int platform;

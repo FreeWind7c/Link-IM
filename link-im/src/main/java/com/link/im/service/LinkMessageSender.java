@@ -1,14 +1,24 @@
 package com.link.im.service;
 
+import com.link.common.core.model.data.PackData;
+import com.link.core.codec.LinkPackDataEncoder;
 import com.link.core.config.LinkCoreConfig;
 import com.link.common.core.event.EventType;
 import com.link.core.session.service.LinkSession;
+import com.link.im.processor.borad.LinkGroupBroadcaster;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * @Author: 无敌代码写手
@@ -21,12 +31,15 @@ public class LinkMessageSender {
     @Autowired
     private LinkCoreConfig config;
 
+    @Autowired
+    private LinkGroupBroadcaster broadcaster;
+
+    @Autowired
+    private LinkPackDataEncoder encoder;
+
 
     public void send(String userId,EventType eventType,Object obj){
 
-        // 跨进程降级：本进程（如 api）没有该用户的在线 session 时，sessionManager 返回 null/空。
-        // 此处不抛错、直接返回——在线推送本应由持有连接的 gateway 进程完成。
-        // TODO 微服务化：改为查 Redis 在线表定位 gateway 节点，并经 MQ 投递推送指令。
         List<LinkSession> sessions = this.config.getSessionManager().getSession(userId);
 
         if (sessions == null || sessions.isEmpty()) {
@@ -38,4 +51,34 @@ public class LinkMessageSender {
     }
 
 
+    public void send(List<String> userId, EventType event, Object payload) {
+        ArrayList<Channel> channels = new ArrayList<>();
+        userId.forEach(key -> {
+            List<LinkSession> session = this.config.getSessionManager().getSession(key);
+            if (session != null && !session.isEmpty()){
+                session.forEach(s -> {
+                    channels.add(s.getChannel());
+                });
+            }
+        });
+
+        if (channels.size() > this.config.getCorePoolSize())
+            this.broadcaster.broadcast(event,channels, this.config.getLinkSerializer().serialize(payload));
+        else {
+            byte[] body = this.config.getLinkSerializer().serialize(payload);
+            PackData packData = new PackData(event.getAction(), body.length, body);
+            ByteBuf buffer = PooledByteBufAllocator.DEFAULT.buffer(LinkCoreConfig.PROTO_FRAME_LENGTH+body.length);
+            this.encoder.encode(packData,buffer);
+            try{
+
+                for (Channel ch : channels) {
+                    if (!ch.isActive()) continue;
+                    ch.writeAndFlush(buffer.retainedDuplicate(),ch.voidPromise());
+                }
+            }finally {
+                buffer.release();
+            }
+        }
+
+    }
 }

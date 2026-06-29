@@ -1,10 +1,10 @@
 package com.link.restapi.chat.service;
 
 import com.link.common.util.id.ChatIdGenerator;
+import com.link.im.entity.chat.ChatSessionMember;
 import com.link.im.entity.group.GroupInfo;
 import com.link.im.enums.gloabl.GlobalCode;
 import com.link.im.mongo.BasePlatFormMongoService;
-import com.link.im.entity.chat.ChatMember;
 import com.link.im.entity.chat.ChatSession;
 import com.link.im.entity.user.UserInfo;
 import com.link.im.util.ApiResult;
@@ -39,28 +39,28 @@ public class ChatSessionService extends BasePlatFormMongoService<ChatSession> {
             return ApiResult.error(GlobalCode.PARAMETER_VALIDATOR_ERROR);
 
         // 1. 拉取该用户收件箱里的会话条目（分页），按最近活跃倒序
-        Query memberQuery = eq(where(colOf(ChatMember::getOwnerId)).is(new ObjectId(dto.getUserId())));
+        Query memberQuery = eq(where(colOf(ChatSessionMember::getOwnerId)).is(new ObjectId(dto.getUserId())));
         memberQuery.with(Sort.by(
-                Sort.Direction.DESC, colOf(ChatMember::getUpdatedTime)));
+                Sort.Direction.DESC, colOf(ChatSessionMember::getUpdatedTime)));
         memberQuery.skip(dto.getSkip());
         memberQuery.limit(dto.getLimit());
-        List<ChatMember> chatMembers = this.getMongoTemplate().find(memberQuery, ChatMember.class);
-        if (chatMembers.isEmpty())
+        List<ChatSessionMember> chatSessionMembers = this.getMongoTemplate().find(memberQuery, ChatSessionMember.class);
+        if (chatSessionMembers.isEmpty())
             return ApiResult.success().setData(new ArrayList<LinkChatSessionVo>());
 
         // 2. 按类型拆分：单聊取对端 UserInfo，群聊取 GroupInfo
-        List<ObjectId> singleTargetIds = chatMembers.stream()
-                .filter(item -> item.getType() == ChatMember.TYPE_SINGLE)
-                .map(ChatMember::getTargetId)
+        List<ObjectId> singleTargetIds = chatSessionMembers.stream()
+                .filter(item -> item.getType() == ChatSessionMember.TYPE_SINGLE)
+                .map(ChatSessionMember::getTargetId)
                 .collect(Collectors.toList());
-        List<ObjectId> groupTargetIds = chatMembers.stream()
-                .filter(item -> item.getType() == ChatMember.TYPE_GROUP)
-                .map(ChatMember::getTargetId)
+        List<ObjectId> groupTargetIds = chatSessionMembers.stream()
+                .filter(item -> item.getType() == ChatSessionMember.TYPE_GROUP)
+                .map(ChatSessionMember::getTargetId)
                 .collect(Collectors.toList());
 
         // 3. 会话级信息（lastMsgSeq/summary/time、type），按 chatId 批量取
-        List<String> chatIds = chatMembers.stream()
-                .map(ChatMember::getChatId)
+        List<String> chatIds = chatSessionMembers.stream()
+                .map(ChatSessionMember::getChatId)
                 .collect(Collectors.toList());
         Query sessionQuery = eq(where(col(ChatSession::getChatId)).in(chatIds));
         Map<String, ChatSession> sessionMap = this.find(sessionQuery).stream()
@@ -88,22 +88,22 @@ public class ChatSessionService extends BasePlatFormMongoService<ChatSession> {
                     .collect(Collectors.toMap(GroupInfo::getId, Function.identity()));
         }
 
-        List<LinkChatSessionVo> vos = createChatInfoVos(chatMembers, sessionMap, userMap, groupMap);
+        List<LinkChatSessionVo> vos = createChatInfoVos(chatSessionMembers, sessionMap, userMap, groupMap);
         return ApiResult.success().setData(vos);
     }
 
-    private static List<LinkChatSessionVo> createChatInfoVos(List<ChatMember> chatMembers,
+    private static List<LinkChatSessionVo> createChatInfoVos(List<ChatSessionMember> chatSessionMembers,
                                                              Map<String, ChatSession> sessionMap,
                                                              Map<ObjectId, UserInfo> userInfoMap,
                                                              Map<ObjectId, GroupInfo> groupInfoMap) {
-        List<LinkChatSessionVo> vos = new ArrayList<>(chatMembers.size());
-        for (ChatMember member : chatMembers) {
+        List<LinkChatSessionVo> vos = new ArrayList<>(chatSessionMembers.size());
+        for (ChatSessionMember member : chatSessionMembers) {
             ChatSession session = sessionMap.get(member.getChatId());
             // 会话级信息缺失（理论上不该发生）时跳过，避免渲染出空会话
             if (session == null)
                 continue;
 
-            if (member.getType() == ChatMember.TYPE_GROUP) {
+            if (member.getType() == ChatSessionMember.TYPE_GROUP) {
                 GroupInfo group = groupInfoMap.get(member.getTargetId());
                 if (group == null)
                     continue;
@@ -124,7 +124,7 @@ public class ChatSessionService extends BasePlatFormMongoService<ChatSession> {
 
         String chatId = ChatIdGenerator.nextId(dto.getUserId(), dto.getTargetId());
         ChatSession session = new ChatSession().createSingle(chatId);
-        ChatMember member = new ChatMember().createSingle(dto.getUserId(), dto.getTargetId(), chatId);
+        ChatSessionMember member = new ChatSessionMember().createSingle(dto.getUserId(), dto.getTargetId(), chatId);
         Query eq = eq(
                 where(col(ChatSession::getChatId)).is(chatId)
         );
