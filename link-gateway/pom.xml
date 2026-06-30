@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.link</groupId>
+        <artifactId>cc-link</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>link-gateway</artifactId>
+    <name>link-gateway</name>
+    <description>统一 HTTP 入口：Spring Cloud Gateway 网关，经 Nacos 服务发现路由到 restapi / oss，并在入口做 JWT 鉴权与跨域。</description>
+
+    <!--
+      边缘网关（reactive / webflux 栈）：独立进程，对外暴露唯一端口。
+      - gateway-server-webflux：Spring Cloud 2025.1 起 starter 更名，旧 spring-cloud-starter-gateway 不兼容 SB4
+      - nacos-discovery：从 Nacos 拉取 restapi / oss 实例
+      - loadbalancer：lb:// 协议路由所需的客户端负载均衡
+      - link-common：复用 TokenUtil 做网关层 JWT 校验（仅依赖契约/工具层，不引上层业务）
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+
+        <!-- 网关层 JWT 校验复用 link-common 的 TokenUtil（传递带上 java-jwt） -->
+        <dependency>
+            <groupId>com.link</groupId>
+            <artifactId>link-common</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- 独立可执行 jar：与 restapi / oss / server-starter 各自独立启动 -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

@@ -1,0 +1,48 @@
+# 网关进程配置（reactive / webflux 栈，统一 HTTP 入口）
+server:
+  port: ${GATEWAY_PORT:88}
+
+spring:
+  application:
+    name: link-gateway
+  cloud:
+    nacos:
+      discovery:
+        # 注册自身并从 Nacos 发现下游 restapi / oss 实例
+        server-addr: ${NACOS_ADDR:106.52.57.213:8848}
+    gateway:
+      server:
+        webflux:
+          # 路由顺序敏感：/api/oss/** 必须在 /api/** 之前，否则会被通配规则吞掉
+          routes:
+            - id: link-oss
+              uri: http://localhost:9000
+              predicates:
+                - Path=/api/oss/**
+              filters:
+                # 剥掉 /api 前缀：oss 控制器映射是 /oss/upload，不含 /api
+                - StripPrefix=1
+            - id: link-restapi
+              uri: http://localhost:8080
+              predicates:
+                - Path=/api/**
+              filters:
+                # 剥掉 /api 前缀：restapi 控制器映射是 /user、/friend 等，不含 /api
+                - StripPrefix=1
+          # 跨域：统一在网关层处理，下游业务无需各自配置 CORS
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowed-origin-patterns: "*"
+                allowed-methods: "*"
+                allowed-headers: "*"
+                allow-credentials: true
+                max-age: 3600
+
+# 网关鉴权白名单：登录/注册无 token 入口放行，其余路径强制校验 JWT
+link:
+  gateway:
+    auth:
+      whitelist:
+        - /api/user/auth
+        - /api/user/register
