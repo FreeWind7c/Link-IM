@@ -63,7 +63,7 @@ public class FriendInfoService extends BasePlatFormMongoService<FriendInfo> {
         request.setCreatedTime(now());
         request.setUpdatedTime(now());
         this.getMongoTemplate().insert(request);
-        this.pushPublisher.push(Arrays.asList(dto.getFriendId()), EventType.ADD_FRIEND, linkFriend);
+        this.pushPublisher.push( EventType.ADD_FRIEND,Arrays.asList(dto.getFriendId()), linkFriend);
         return ApiResult.success(FriendInfoCode.NOTIFY_USER);
     }
     public ApiResult queryFriend(String userId) {
@@ -131,9 +131,9 @@ public class FriendInfoService extends BasePlatFormMongoService<FriendInfo> {
 
         // 无论新增还是恢复，双方都需要同步好友关系
         LinkApproveFriend notifySelf = new LinkApproveFriend(dto.getUserId(), dto.getFriendId());
-        this.pushPublisher.push(Arrays.asList(dto.getUserId()), EventType.APPROVE_FRIEND, notifySelf);
+        this.pushPublisher.push(EventType.APPROVE_FRIEND,Arrays.asList(dto.getUserId()),  notifySelf);
         LinkApproveFriend notifyFriend = new LinkApproveFriend(dto.getFriendId(), dto.getUserId());
-        this.pushPublisher.push(Arrays.asList(dto.getFriendId()), EventType.APPROVE_FRIEND, notifyFriend);
+        this.pushPublisher.push(EventType.APPROVE_FRIEND,Arrays.asList(dto.getFriendId()),  notifyFriend);
         return ApiResult.success();
     }
 }

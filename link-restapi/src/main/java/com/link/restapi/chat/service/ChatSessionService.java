@@ -1,5 +1,6 @@
 package com.link.restapi.chat.service;
 
+import com.google.gson.Gson;
 import com.link.common.util.id.ChatIdGenerator;
 import com.link.im.entity.chat.ChatSessionMember;
 import com.link.im.entity.group.GroupInfo;

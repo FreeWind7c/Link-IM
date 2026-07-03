@@ -14,26 +14,14 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.List;
 
-/**
- * IM 模块 service 基类，封装 MongoTemplate 常用操作。
- * 子类继承时传入实体类型，例如：
- * <pre>{@code
- * public class UserInfoService extends LinkMongoService<UserInfo> { ... }
- * }</pre>
- * 基类通过反射拿到该泛型类型，方法内部自动使用，无需再逐个传 Class。
- * 需要操作其它实体或复杂查询时，仍可直接用 this.mongo 拿到原始 MongoTemplate。
- *
- * @param <T> 该 service 主要操作的实体类型
- */
+
 @Slf4j
 public abstract class BasePlatFormMongoService<T> {
 
     @Autowired
     protected MongoTemplate mongo;
 
-    /**
-     * 子类传入的实体类型，构造时通过反射解析得到
-     */
+
     protected final Class<T> ENTITY_CLASS;
 
 
@@ -148,38 +136,21 @@ public abstract class BasePlatFormMongoService<T> {
         return new Query(Criteria.where(field).is(value));
     }
 
-    /**
-     * 通过方法引用拿字段名：this.col(UserInfo::getAccount) -> "account"。
-     * 字段名与属性名不一致时（实体属性带 @Field 注解），返回注解里的名字。
-     */
+
     protected <E> String col(SFunction<E, ?> column) {
-        return LinkLambdaUtil.fieldName(column);
+        return LambdaUtil.fieldName(column);
     }
 
-    /**
-     * 跨实体取字段名：this.colOf(UserInfo::getUserNo) -> "userNo"。
-     * 当前 service 主实体（T）之外的实体用这个，T 自己的字段用 col 即可。
-     */
+
     protected <E> String colOf(SFunction<E, ?> column) {
-        return LinkLambdaUtil.fieldName(column);
+        return LambdaUtil.fieldName(column);
     }
 
-    /**
-     * lambda 版等值查询：this.eq(UserInfo::getAccount, account)。
-     * 等价于 new Query(Criteria.where("account").is(account))，但字段名编译期可校验、重构安全。
-     */
     protected Query eq(SFunction<T, ?> column, Object value) {
         return new Query(Criteria.where(col(column)).is(value));
     }
 
-    /**
-     * 生成在指定字段上唯一的值：用 supplier 生成候选值，查库判重，撞了重试。
-     * 例：唯一 userNo -> this.nextUnique(UserInfo::getUserNo, LinkUserNoGenerator::next)
-     *
-     * @param column   要保证唯一的字段
-     * @param supplier 候选值生成器（如 LinkUserNoGenerator::next）
-     * @return 当前库中不存在的唯一值
-     */
+
     protected String nextUnique(SFunction<T, ?> column, java.util.function.Supplier<String> supplier) {
         final int maxRetry = 10;
         String field = col(column);

@@ -5,6 +5,7 @@ import com.link.common.core.event.EventType;
 import com.link.core.config.LinkCoreConfig;
 import com.link.core.event.facotry.EventHandlerFactory;
 import com.link.core.event.handler.EventHandler;
+import com.link.core.pool.thread.PartitionedOrderedExecutor;
 import com.link.core.session.service.LinkSession;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -34,6 +35,9 @@ public class LinkEventDispatcher {
     @Qualifier("IMExecutor")
     private ThreadPoolTaskExecutor workerPool;
 
+    @Autowired
+    private PartitionedOrderedExecutor orderedExecutor;
+
 
     public void eventDispatcher(EventType eventType, ByteBuf buf, Channel channel){
         // 门禁：未认证连接只放行 LOGIN，其余事件一律拒绝并关连接
@@ -50,8 +54,19 @@ public class LinkEventDispatcher {
         byte[] body = new byte[buf.readableBytes()];
         buf.readBytes(body);
         Object data = this.config.getLinkSerializer().deserialize(body, eventHandler.bodyClass());
-        workerPool.submit(() -> {
-            eventHandler.handler(data,channel);
-        });
+
+        // 顺序路由：有 partitionKey（如聊天消息返回 chatId）的事件走分区单线程池，
+        // 保证同一会话严格有序；无 key 的事件走共享池并发处理。
+        // 反序列化在 IO 线程完成，提交顺序 = 该连接的发送顺序，是有序链条的第一环。
+        String partitionKey = eventHandler.partitionKey(data);
+        if (partitionKey != null) {
+            this.orderedExecutor.submit(partitionKey, () -> {
+                eventHandler.handler(data, channel);
+            });
+        } else {
+            workerPool.submit(() -> {
+                eventHandler.handler(data, channel);
+            });
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.link.core.util.seq;
 
 import org.springframework.core.io.ClassPathResource;
+import com.link.common.redis.RedisConstant;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -23,7 +24,6 @@ import java.util.List;
 @Component
 public class MessageSeqAllocator {
 
-    /** 去重 key 的存活时间（秒），覆盖重发可能发生的时间窗口即可。这里给 1 天。 */
     private static final String DEDUP_TTL_SECONDS = "86400";
 
     private final StringRedisTemplate stringRedisTemplate;
@@ -50,7 +50,7 @@ public class MessageSeqAllocator {
      */
     public SeqResult allocate(String conversationId, String messageId) {
         String dedupKey = "dedup:" + conversationId + ":" + messageId;
-        String seqKey = "seq:" + conversationId;
+        String seqKey = RedisConstant.SEQ + conversationId;
 
         @SuppressWarnings("unchecked")
         List<Long> result = this.stringRedisTemplate.execute(
@@ -61,6 +61,18 @@ public class MessageSeqAllocator {
         long flag = result.get(0);
         long seq = result.get(1);
         return new SeqResult(flag == 1, seq);
+    }
+
+    /**
+     * 查询某会话当前已分配到的最新 seq（不递增）。
+     *
+     * @param chatId 会话 ID
+     * @return 当前最新 seq；该会话还未分配过任何 seq 时返回 0
+     */
+    public long getCurrentSeq(String chatId) {
+        String seqKey = RedisConstant.SEQ + chatId;
+        String value = this.stringRedisTemplate.opsForValue().get(seqKey);
+        return value == null ? 0L : Long.parseLong(value);
     }
 
     /**

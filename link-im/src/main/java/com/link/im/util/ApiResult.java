@@ -7,11 +7,7 @@ import com.link.im.enums.BaseEnum;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * 返回数据
- *
- * @author Mark sunlightcs@gmail.com
- */
+
 public class ApiResult extends HashMap<String, Object> {
 	private static final long serialVersionUID = 1L;
 

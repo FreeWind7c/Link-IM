@@ -32,7 +32,7 @@ public class GroupInfoController {
 
     @PostMapping("/remove-member")
     public ApiResult removeMember(@RequestBody LinkRemoveGroupMemberDto dto){
-        return groupMemberService.removeMember(dto);
+        return groupInfoService.removeMember(dto);
     }
 
     @PostMapping("/get-member")

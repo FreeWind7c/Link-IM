@@ -8,10 +8,6 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.AttributeKey;
 
 /**
- * 连接安全门卫：放在 pipeline 最前面。
- * 连接建立/断开时把生命周期事件转交给 {@link com.link.core.security.ConnectionSecurityManager}，
- * 超限连接在此直接被拦掉，根本到不了解码器。
- *
  * @Author: 无敌代码写手
  * @CreateTime: 2026年06月18日
  */

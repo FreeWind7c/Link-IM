@@ -68,6 +68,9 @@ public class LinkCoreConfig {
 
     private int maxPoolSize = Runtime.getRuntime().availableProcessors() * 4;
 
+
+    private int seqPartitionCount = Runtime.getRuntime().availableProcessors() * 2;
+
     private int queueCapacity = 500;
 
     private int keepAlive = 60;

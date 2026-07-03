@@ -1,4 +1,4 @@
-package com.link.util.id;
+package com.link.common.util.id;
 
 /**
  * 雪花算法 ID 生成器（Twitter Snowflake）。

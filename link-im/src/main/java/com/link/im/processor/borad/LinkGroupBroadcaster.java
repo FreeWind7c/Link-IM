@@ -58,26 +58,29 @@ public class LinkGroupBroadcaster {
             for (Map.Entry<EventLoop, List<Channel>> entry : eventMap.entrySet()) {
                 List<Channel> group = entry.getValue();
                 ByteBuf buf = frame.retainedDuplicate();
-                entry.getKey().execute(() -> {
-                    try{
-                        for (Channel channel : group) {
-                            if (!channel.isActive()) continue;;
-                            if (!channel.isWritable()){
-                                log.debug("channel {} 不可写(慢消费者),跳过本条群消息", channel.id());
-                                continue;
+                try{
+                    entry.getKey().execute(() -> {
+                        try{
+                            for (Channel channel : group) {
+                                if (!channel.isActive()) continue;;
+                                if (!channel.isWritable()){
+                                    log.debug("channel {} 不可写(慢消费者),跳过本条群消息", channel.id());
+                                    continue;
+                                }
+                                channel.write(buf.retainedDuplicate(),channel.voidPromise());
                             }
-                            channel.write(buf.retainedDuplicate(),channel.voidPromise());
+                            for (Channel channel : group) {
+                                if (!channel.isActive())
+                                    continue;
+                                channel.flush();
+                            }
+                        }finally {
+                            buf.release();
                         }
-                        for (Channel channel : group) {
-                            if (!channel.isActive())
-                                continue;
-                            channel.flush();
-                        }
-                    }finally {
-                        buf.release();
-                    }
-                });
-
+                    });
+                }catch (Exception e){
+                    buf.release();
+                }
             }
         }finally{
             frame.release();

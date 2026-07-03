@@ -11,6 +11,7 @@ import com.link.im.entity.message.GroupMessageInfo;
 import com.link.im.mongo.BasePlatFormMongoService;
 import com.link.im.processor.LinkMessageProcessor;
 import com.link.im.processor.borad.LinkGroupBroadcaster;
+import com.link.im.service.LinkRedisService;
 import io.netty.channel.Channel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.query.Query;
@@ -33,7 +34,7 @@ public class LinkGroupMessageProcessor extends BasePlatFormMongoService<DefaultM
     private LinkCoreConfig config;
 
     @Autowired
-    private RedisTemplate redisTemplate;
+    private LinkRedisService redisService;
 
     @Autowired
     private LinkGroupBroadcaster broadcaster;
@@ -41,23 +42,9 @@ public class LinkGroupMessageProcessor extends BasePlatFormMongoService<DefaultM
     @Override
     public void processor(AbstractMessage abstractMessage, Channel channel) {
         GroupMessageInfo message = (GroupMessageInfo) abstractMessage;
-        Set<String> memberIds = redisTemplate.opsForSet().members(RedisConstant.GROUP_MEMBER+message.getChatId());
-        if (memberIds == null || memberIds.isEmpty())
-        {
-                Query eq = eq(
-                        where(col(ChatSessionMember::getChatId)).is(message.getChatId())
-                );
-                eq.fields().include(col(ChatSessionMember::getOwnerId));
-                List<ChatSessionMember> chatSessionMembers = this.getMongoTemplate().find(eq, ChatSessionMember.class);
-                if (chatSessionMembers == null || chatSessionMembers.isEmpty())
-                    return;
-                memberIds = chatSessionMembers.stream().map(item -> { return item.getOwnerId().toString();
-                }).collect(Collectors.toSet());
-                redisTemplate.opsForSet().add(RedisConstant.GROUP_MEMBER+message.getChatId()
-                        ,memberIds.toArray(new String[0]));
-        }
-
+        Set<String> memberIds = redisService.getChatMemberIds(message.getChatId());
         ArrayList<Channel> channels = new ArrayList<>();
+
         for (String userId : memberIds) {
             if (userId.equals(message.getSndId()))
                 continue;

@@ -7,16 +7,12 @@ import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * 从可序列化 lambda（如 UserInfo::getAccount）解析出 MongoDB 字段名。
- * 解析结果做缓存，避免重复反射/序列化开销。
- */
-public final class LinkLambdaUtil {
 
-    private LinkLambdaUtil() {
+public final class LambdaUtil {
+
+    private LambdaUtil() {
     }
 
-    /** key 用 lambda 的实现类名，同一个方法引用每次是同一个生成类 */
     private static final Map<String, String> CACHE = new ConcurrentHashMap<>();
 
     public static <T, R> String fieldName(SFunction<T, R> fn) {
@@ -79,7 +75,6 @@ public final class LinkLambdaUtil {
             try {
                 return c.getDeclaredField(name);
             } catch (NoSuchFieldException ignored) {
-                // 继续往父类找
             }
         }
         return null;

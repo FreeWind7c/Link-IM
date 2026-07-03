@@ -1,6 +1,7 @@
 package com.link.restapi.message.controller;
 
 import com.link.im.util.ApiResult;
+import com.link.restapi.message.model.dto.LinkAroundMessageDto;
 import com.link.restapi.message.model.dto.LinkCompleteMessageDto;
 import com.link.restapi.message.model.dto.LinkPullMessageDto;
 import com.link.restapi.message.service.MessageInfoService;
@@ -34,5 +35,10 @@ public class LinkMessageInfoController {
     @PostMapping("/complete-message")
     public ApiResult completeMessage(@RequestBody LinkCompleteMessageDto dto){
         return messageInfoService.completeMessage(dto);
+    }
+
+    @PostMapping("/around-message")
+    public ApiResult aroundMessage(@RequestBody LinkAroundMessageDto dto){
+        return messageInfoService.aroundMessage(dto);
     }
 }

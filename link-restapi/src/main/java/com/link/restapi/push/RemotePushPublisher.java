@@ -13,6 +13,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 远程推送发布端。HTTP 进程不持长连接，无法直接 channel.write；本类把「请推给某用户」封成
@@ -49,7 +50,7 @@ public class RemotePushPublisher {
             String payloadType = payload.getClass().getName();
             String payloadJson = objectMapper.writeValueAsString(payload);
             FanoutPushCommand cmd = new FanoutPushCommand()
-                    .setUserId((List<String>) userIds)
+                    .setUserId( userIds)
                     .setEventType(eventType.getAction())
                     .setPayloadType(payloadType)
                     .setPayloadJson(payloadJson);

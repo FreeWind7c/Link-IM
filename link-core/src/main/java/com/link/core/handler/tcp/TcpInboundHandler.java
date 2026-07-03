@@ -24,9 +24,7 @@ import java.util.List;
 @Slf4j
 public class TcpInboundHandler extends ByteToMessageDecoder {
 
-    // ByteToMessageDecoder 持有 per-channel 累积缓冲，是有状态的，
-    // 不能用 @Sharable 单例共享，必须每条连接 new 一个。
-    // 因此它的依赖只能走构造器注入，不能用 @Autowired（new 出来的实例 Spring 注入不进去）。
+
     private final LinkCoreConfig config;
 
     private final LinkEventDispatcher linkEventDispatcher;

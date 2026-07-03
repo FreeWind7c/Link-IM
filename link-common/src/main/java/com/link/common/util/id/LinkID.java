@@ -1,4 +1,4 @@
-package com.link.util.id;
+package com.link.common.util.id;
 
 import java.net.NetworkInterface;
 import java.util.Enumeration;
@@ -19,6 +19,11 @@ import java.util.Enumeration;
 public class LinkID {
 
     private static final SnowflakeIdGenerator GENERATOR;
+
+    public static void main(String[] args) {
+        System.out.println(nextIdStr());
+    }
+
 
     static {
         long dataCenterId = resolveId("snowflake.dataCenterId", 31L);

@@ -6,7 +6,8 @@ package com.link.common.redis;
  */
 public class RedisConstant {
 
-    public static final String MESSAGE_SEQ = "message_seq:";
+    /** 会话级 seq 计数器前缀，拼接 chatId。权威来源，INCR 分配；当前值即最新一条消息的 seq。 */
+    public static final String SEQ = "seq:";
 
-    public static final String GROUP_MEMBER = "group_member:" ;
+    public static final String CHAT_SESSION_MEMBER = "chat_session_member:" ;
 }

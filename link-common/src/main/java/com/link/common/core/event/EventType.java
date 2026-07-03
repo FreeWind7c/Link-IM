@@ -17,7 +17,10 @@ public enum EventType {
     GROUP_MESSAGE((short) 1011),
 
     ADD_FRIEND((short) 1012),
-    APPROVE_FRIEND((short) 1013), REMOVE_GROUP_MEMBER((short) 1014), JOIN_GROUP((short) 1015);
+    APPROVE_FRIEND((short) 1013),
+    REMOVE_GROUP_MEMBER((short) 1014),
+    JOIN_GROUP((short) 1015),
+    NOTICE_MESSAGE((short) 1016);
 
 
 

@@ -17,14 +17,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 连接安全主管：集中处理「未认证连接」的防护，让恶意连接既便宜又短命。
- * 四项能力：
- * ① 认证超时   —— 连接建立后限时未登录则踢
- * ② 单 IP / 全局连接数上限 —— 防止刷连接耗内存
- * ③ 帧长度上限 —— 防止单连接用超大 length 撑爆累积缓冲
- * ④ 认证门禁   —— 未认证连接只允许登录事件
- *
- * 本类是单例（由 {@link LinkCoreConfig} 持有），所有 channel 共享同一份计数。
  *
  * @Author: 无敌代码写手
  * @CreateTime: 2026年06月18日
@@ -54,8 +46,6 @@ public class ConnectionSecurityManager {
 
     /**
      * 连接建立时调用：全局 / 单 IP 连接数校验 + 计数 + 安排认证超时。
-     *
-     * @return true=放行；false=已超限并关闭连接，调用方应直接 return
      */
     public boolean onConnect(ChannelHandlerContext ctx) {
         Channel channel = ctx.channel();

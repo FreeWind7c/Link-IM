@@ -7,6 +7,7 @@ import com.link.common.redis.RedisConstant;
 import com.link.common.util.id.ChatIdGenerator;
 import com.link.im.constants.group.GroupRoleConstant;
 import com.link.im.entity.chat.ChatSessionMember;
+import com.link.im.entity.group.GroupInfo;
 import com.link.im.entity.group.GroupMember;
 import com.link.im.entity.user.UserInfo;
 import com.link.im.enums.gloabl.GlobalCode;
@@ -24,6 +25,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -43,13 +45,15 @@ public class GroupMemberService extends BasePlatFormMongoService<GroupMember> {
     @Autowired
     private RedisTemplate redisTemplate;
 
+    /** 读会话级 seq 计数器（seq:{chatId}）用，纯字符串数字，不能用 JDK 序列化的 redisTemplate。 */
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
     @Autowired
     private RemotePushPublisher pushPublisher;
 
     public List<GroupMember> createMembers(LinkCreateGroupDto dto) {
-
         long now = now();
-
         List<GroupMember> members = dto.getMemebrs().stream().map(item -> {
             GroupMember groupMember = new GroupMember().create(item.getUserId(), dto.getOwnerId(), GroupRoleConstant.REGULAR_MEMBER);
             groupMember.setCreatedTime(now);
@@ -164,13 +168,29 @@ public class GroupMemberService extends BasePlatFormMongoService<GroupMember> {
                 where(col(ChatSessionMember::getTargetId)).is(new ObjectId(dto.getGroupId()))
                         .and(col(ChatSessionMember::getOwnerId)).in(removedUserIds)
         );
-        Update update = update().set(col(ChatSessionMember::isActive), false);
+
+        String chatId = ChatIdGenerator.nextId(dto.getGroupId());
+        String seqStr = stringRedisTemplate.opsForValue().get(RedisConstant.SEQ + chatId);
+        int currentSeq = StringUtils.hasText(seqStr) ? Integer.parseInt(seqStr) : 0;
+        int gapFrom = currentSeq + 1;
+
+        Update update = update()
+                .set(col(ChatSessionMember::isActive), false)
+                .push(col(ChatSessionMember::getBlackoutGaps), new ChatSessionMember.Gap(gapFrom, null));
 
         this.getMongoTemplate().updateMulti(updateQuery,update,ChatSessionMember.class);
         this.remove(removeQuery);
-        redisTemplate.delete(RedisConstant.GROUP_MEMBER + ChatIdGenerator.nextId(dto.getGroupId()));
 
-        this.pushPublisher.push(dto.getRemovedUserId(), EventType.REMOVE_GROUP_MEMBER,new LinkRemoveGroup(ChatIdGenerator.nextId(dto.getGroupId())));
+        // 群成员数 -N（按实际删除条数，不用请求里的 id 数，避免重复 / 不存在的 id 把计数减多）
+        this.getMongoTemplate().updateFirst(
+                eq(where(colOf(GroupInfo::getId)).is(new ObjectId(dto.getGroupId()))),
+                update().inc(colOf(GroupInfo::getGroupMemberSize), -removeMembers.size()),
+                GroupInfo.class
+        );
+
+        redisTemplate.delete(RedisConstant.CHAT_SESSION_MEMBER + chatId);
+
+        this.pushPublisher.push(EventType.REMOVE_GROUP_MEMBER,dto.getRemovedUserId(), new LinkRemoveGroup(chatId));
         return ApiResult.success();
     }
 }

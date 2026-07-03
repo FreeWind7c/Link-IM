@@ -3,6 +3,7 @@ package com.link.restapi.message.model.vo;
 import com.link.im.entity.base.BaseData;
 import com.link.im.entity.message.DefaultMessageInfo;
 import com.link.im.entity.message.GroupMessageInfo;
+import com.link.im.entity.message.QuoteRef;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.springframework.beans.BeanUtils;
@@ -32,6 +33,9 @@ public class LinkMessageInfoVo {
     private BaseData data;
 
     private long timestamp;
+
+    /** 引用的消息快照，非引用消息为 null。前端据此渲染引用块并支持点击跳转。 */
+    private QuoteRef quote;
 
     /** 由消息实体拷贝出展示 VO。 */
     public static LinkMessageInfoVo from(DefaultMessageInfo message) {

@@ -10,6 +10,8 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
+import java.util.List;
+
 /**
  * 用户级会话状态（per-user 收件箱视图，每人每会话一条）。
  *
@@ -72,6 +74,19 @@ public class ChatSessionMember extends BaseEntity {
     @Field("last_read_seq")
     private int lastReadSeq;
 
+    /**
+     * 未读 @我 消息的 seq 列表（owner 私有），从旧到新，上限 10 条（满则丢弃更新的，保留最早 10 条）。
+     *
+     * <p>驱动两处 @ 提醒：①会话列表「[有人@我]」前缀（非空即显示，count 取 size）；
+     * ②点进会话后浮动按钮依次跳转到每条 @我 消息（前端按此数组逐个定位）。
+     *
+     * <p>写入：消息带 @ 时由 {@code LinkGroupMessageEventHandler} 扇出前对被 @ 成员
+     * {@code $push + $slice:10}，与在线状态无关（在线只代表送达，不代表已读）。
+     * 清空：{@code ChatMemberService.reportSession}——用户进 / 出会话上报已读即视为已看到 @提醒。
+     */
+    @Field("at_list")
+    private List<Integer> atList;
+
     /** 是否置顶（owner 私有）。 */
     @Field("show_top")
     private boolean showTop;
@@ -84,6 +99,42 @@ public class ChatSessionMember extends BaseEntity {
 
     // 是否有收发能力
     private boolean active = true;
+
+    private long joinTime;
+
+    /**
+     * 不可见消息空档（blackout gap）。仅「被移除过又拉回」的成员才有，普通成员为空。
+     *
+     * <p>每个 Gap 是该成员被移除期间的 seq 闭区间 [from, to]——这段消息他不在群，拉历史时要排除。
+     * 被踢再拉回可能产生多段,故用列表。{@code to == null} 表示当前仍在被踢状态（开口，尚未回群），
+     * 拉取时按 {@code seq >= from} 全部排除；重新入群时由 join 流程封口。
+     *
+     * <p>由 {@code GroupMemberService.removeMember}（开口）和 {@code GroupInfoService.joinGroup}（封口）维护，
+     * 由 {@code MessageInfoService.pullMessage/completeMessage} 以 $nor 消费。
+     */
+    @Field("blackout_gaps")
+    private List<Gap> blackoutGaps;
+
+    /**
+     * 不可见消息空档区间，seq 闭区间 [from, to]。
+     * to 为 null 表示开口（被踢未回），按 seq >= from 一律不可见。
+     */
+    @Data
+    @Accessors(chain = true)
+    public static class Gap {
+        /** 空档起始 seq（被踢后第一条不可见消息），= 被踢时 ChatSession.lastMsgSeq + 1。 */
+        private int from;
+        /** 空档结束 seq（重进前最后一条不可见消息），= 重进时 ChatSession.lastMsgSeq；null 表示仍被踢。 */
+        private Integer to;
+
+        public Gap() {
+        }
+
+        public Gap(int from, Integer to) {
+            this.from = from;
+            this.to = to;
+        }
+    }
 
     /**
      * 创建单聊收件箱条目。chatId 由调用方按排序规则算好后传入，保证双方一致。

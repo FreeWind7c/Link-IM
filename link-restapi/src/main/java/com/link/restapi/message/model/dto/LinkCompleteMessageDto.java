@@ -13,6 +13,9 @@ public class LinkCompleteMessageDto {
 
     private String chatId;
 
+    /** 拉取者 uid。群聊必填：用于按其 blackoutGaps 过滤被踢期间不可见的消息。 */
+    private String userId;
+
     private int sessionType;
 
     private int from;

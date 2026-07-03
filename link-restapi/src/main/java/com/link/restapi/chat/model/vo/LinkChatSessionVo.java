@@ -7,6 +7,8 @@ import com.link.im.entity.user.UserInfo;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
+import java.util.List;
+
 /**
  * @Author: 无敌代码写手
  * @CreateTime: 2026年06月22日
@@ -22,37 +24,32 @@ public class LinkChatSessionVo {
 
     private String avatar;
 
-    /** 这条会话属于谁的收件箱（该用户的 uid）。配合 conversationId 唯一确定一条记录。 */
     private String ownerId;
 
-    /** 对端 id：单聊存对方 uid，群聊存 groupId。用于点开会话后定位聊天对象、渲染头像昵称。 */
     private String targetId;
 
-    /** 未读数（owner 私有）。自己发的不加，收到对方消息时 +1，进入会话已读时清零。 */
     private int unreadCount;
 
-    /** owner 已读到的消息 seq（owner 私有）。配合 lastMsgSeq 算未读、做已读回执。 */
     private int lastReadSeq;
 
-    /** 会话内最新一条消息的 seq。用于和 lastReadSeq 比较判断是否有新消息。 */
     private int lastMsgSeq;
 
-    /** 最后一条消息的摘要，列表直接展示（如“[图片]”“在吗”）。避免列表渲染时再查消息表。 */
+    private int lastMsgType;
+
     private String lastMsgSummary;
 
-    /** 最后一条消息的时间戳。聊天栏排序用（置顶优先，其次按它倒序）。 */
     private long lastMsgTime;
 
-    /** 是否置顶（owner 私有）。 */
     private boolean showTop;
 
-    /** 是否免打扰（owner 私有）。 */
     private boolean silence;
 
-    /** 是否从聊天栏移除（owner 私有）。仅隐藏列表项，不删历史消息；再次收到消息会重新出现。 */
     private boolean hidden;
 
     private boolean active;
+
+    /** 未读 @我 消息的 seq 列表（最多10，可能为空）。非空→列表显示「[有人@我]」前缀、进会话渲染跳转浮动按钮。 */
+    private List<Integer> atList;
 
 
     /** 单聊：title/avatar 取对端用户的昵称、头像。 */
@@ -62,6 +59,7 @@ public class LinkChatSessionVo {
                 .setTitle(user.getNickname())
                 .setAvatar(user.getAvatar())
                 .setActive(member.isActive())
+                .setLastMsgType(session.getLastMsgType())
                 .setOwnerId(member.getOwnerId().toHexString())
                 .setTargetId(member.getTargetId().toHexString())
                 .setLastMsgSummary(session.getLastMsgSummary())
@@ -71,7 +69,8 @@ public class LinkChatSessionVo {
                 .setLastMsgTime(session.getLastMsgTime())
                 .setShowTop(member.isShowTop())
                 .setSilence(member.isSilence())
-                .setHidden(member.isHidden());
+                .setHidden(member.isHidden())
+                .setAtList(member.getAtList());
     }
 
     /** 群聊：title/avatar 取群的标题、头像。 */
@@ -81,6 +80,7 @@ public class LinkChatSessionVo {
                 .setTitle(group.getTitle())
                 .setActive(member.isActive())
                 .setAvatar(group.getAvatar())
+                .setLastMsgType(session.getLastMsgType())
                 .setOwnerId(member.getOwnerId().toHexString())
                 .setTargetId(member.getTargetId().toHexString())
                 .setLastMsgSummary(session.getLastMsgSummary())
@@ -90,6 +90,7 @@ public class LinkChatSessionVo {
                 .setLastMsgTime(session.getLastMsgTime())
                 .setShowTop(member.isShowTop())
                 .setSilence(member.isSilence())
-                .setHidden(member.isHidden());
+                .setHidden(member.isHidden())
+                .setAtList(member.getAtList());
     }
 }

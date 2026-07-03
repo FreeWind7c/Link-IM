@@ -30,7 +30,11 @@ public class ChatMemberService extends BasePlatFormMongoService<ChatSessionMembe
                         .and(col(ChatSessionMember::getChatId)).is(dto.getChatId())
         );
 
-        Update update = update().set(col(ChatSessionMember::getLastReadSeq), dto.getLastReadSeq());
+        Update update = update()
+                .set(col(ChatSessionMember::getLastReadSeq), dto.getLastReadSeq())
+                // 进 / 出会话即视为已看到 @提醒：清空未读@我列表，列表「[有人@我]」随之消失。
+                // 前端在调本接口前须已缓存 atList，会话内浮动按钮跳转用缓存那份，不依赖服务端。
+                .set(col(ChatSessionMember::getAtList), java.util.Collections.emptyList());
 
 FindAndModifyOptions options = new FindAndModifyOptions();
         options.upsert(true);
