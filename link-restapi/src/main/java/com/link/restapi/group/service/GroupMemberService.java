@@ -1,9 +1,9 @@
 package com.link.restapi.group.service;
 
-import com.alibaba.nacos.common.utils.CollectionUtils;
+
 import com.link.common.core.event.EventType;
 import com.link.common.core.model.group.LinkRemoveGroup;
-import com.link.common.redis.RedisConstant;
+import com.link.common.redis.RedisKeys;
 import com.link.common.util.id.ChatIdGenerator;
 import com.link.im.constants.group.GroupRoleConstant;
 import com.link.im.entity.chat.ChatSessionMember;
@@ -27,6 +27,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
@@ -170,7 +171,7 @@ public class GroupMemberService extends BasePlatFormMongoService<GroupMember> {
         );
 
         String chatId = ChatIdGenerator.nextId(dto.getGroupId());
-        String seqStr = stringRedisTemplate.opsForValue().get(RedisConstant.SEQ + chatId);
+        String seqStr = stringRedisTemplate.opsForValue().get(RedisKeys.SEQ + chatId);
         int currentSeq = StringUtils.hasText(seqStr) ? Integer.parseInt(seqStr) : 0;
         int gapFrom = currentSeq + 1;
 
@@ -188,7 +189,7 @@ public class GroupMemberService extends BasePlatFormMongoService<GroupMember> {
                 GroupInfo.class
         );
 
-        redisTemplate.delete(RedisConstant.CHAT_SESSION_MEMBER + chatId);
+        redisTemplate.delete(RedisKeys.CHAT_SESSION_MEMBER + chatId);
 
         this.pushPublisher.push(EventType.REMOVE_GROUP_MEMBER,dto.getRemovedUserId(), new LinkRemoveGroup(chatId));
         return ApiResult.success();

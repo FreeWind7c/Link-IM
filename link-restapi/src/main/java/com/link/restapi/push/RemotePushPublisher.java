@@ -5,12 +5,23 @@ import com.link.common.core.event.EventType;
 import com.link.common.core.mq.FanoutPushCommand;
 import com.link.common.core.mq.DirectPushCommand;
 import com.link.common.core.mq.PushMqConst;
+import com.link.im.entity.wallet.*;
+import com.link.restapi.wallet.service.WalletInfoService;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.types.ObjectId;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringApplication;
+import org.springframework.context.ApplicationContext;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -34,6 +45,21 @@ public class RemotePushPublisher {
 
     private ObjectMapper objectMapper = new ObjectMapper();
 
+    @Autowired
+    private MongoTemplate mongoTemplate;
+
+
+    @Autowired
+    private ApplicationContext applicationContext;
+
+
+    @Autowired
+    private WalletInfoService walletInfoService;
+
+    // 模拟mq消费者
+    public void walletWithdraw(WalletWithdraw walletWithdraw){
+        walletInfoService.walletWithdraw(walletWithdraw);
+    }
 
     /**
      * 批量发布在线推送指令（如群消息需推给多名成员）。payload 只序列化一次，逐个用户复用。

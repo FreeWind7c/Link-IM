@@ -1,12 +1,12 @@
 package com.link.restapi.group.service;
 
-import com.alibaba.nacos.common.utils.CollectionUtils;
+
 import com.google.gson.Gson;
 import com.link.common.core.event.EventType;
 import com.link.common.core.model.group.LinkJoinGroup;
 import com.link.common.core.model.group.LinkRemoveGroup;
 import com.link.common.im.data.LinkChatSession;
-import com.link.common.redis.RedisConstant;
+import com.link.common.redis.RedisKeys;
 import com.link.common.util.id.ChatIdGenerator;
 import com.link.common.util.id.LinkID;
 import com.link.core.util.seq.MessageSeqAllocator;
@@ -40,6 +40,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.*;
@@ -179,7 +180,7 @@ public class GroupInfoService extends BasePlatFormMongoService<GroupInfo> {
             );
 
             if (existSessionMember != null) {
-                String seqStr = stringRedisTemplate.opsForValue().get(RedisConstant.SEQ + session.getChatId());
+                String seqStr = stringRedisTemplate.opsForValue().get(RedisKeys.SEQ + session.getChatId());
                 int currentSeq = (seqStr != null && !seqStr.isEmpty()) ? Integer.parseInt(seqStr) : 0;
                 List<ChatSessionMember.Gap> gaps = existSessionMember.getBlackoutGaps();
                 if (gaps != null) {
@@ -234,7 +235,7 @@ public class GroupInfoService extends BasePlatFormMongoService<GroupInfo> {
         );
 
         // 失效群成员缓存，下一条群消息由 LinkGroupMessageProcessor 懒加载重建
-        redisTemplate.delete(RedisConstant.CHAT_SESSION_MEMBER  + session.getChatId());
+        redisTemplate.delete(RedisKeys.CHAT_SESSION_MEMBER  + session.getChatId());
 
         for (ChatSessionMember member : pushChatSessionMembers) {
             LinkJoinGroup payload = new LinkJoinGroup().setSession(toLinkChatSession(session, member, group));
@@ -498,7 +499,7 @@ public class GroupInfoService extends BasePlatFormMongoService<GroupInfo> {
         );
 
         String chatId = ChatIdGenerator.nextId(dto.getGroupId());
-        String seqStr = stringRedisTemplate.opsForValue().get(RedisConstant.SEQ + chatId);
+        String seqStr = stringRedisTemplate.opsForValue().get(RedisKeys.SEQ + chatId);
         int currentSeq = StringUtils.hasText(seqStr) ? Integer.parseInt(seqStr) : 0;
         int gapFrom = currentSeq + 1;
 
@@ -516,7 +517,7 @@ public class GroupInfoService extends BasePlatFormMongoService<GroupInfo> {
                 GroupInfo.class
         );
 
-        redisTemplate.delete(RedisConstant.CHAT_SESSION_MEMBER + chatId);
+        redisTemplate.delete(RedisKeys.CHAT_SESSION_MEMBER + chatId);
 
         this.pushPublisher.push(EventType.REMOVE_GROUP_MEMBER,dto.getRemovedUserId(), new LinkRemoveGroup(chatId));
 

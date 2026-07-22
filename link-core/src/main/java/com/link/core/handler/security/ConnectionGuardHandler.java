@@ -5,6 +5,7 @@ import com.link.core.config.LinkCoreConfig;
 import com.link.core.session.service.LinkSession;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.util.AttributeKey;
 
 /**
@@ -32,7 +33,6 @@ public class ConnectionGuardHandler extends ChannelInboundHandlerAdapter {
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         // 连接计数扣减 + 取消认证超时
         this.config.getConnectionSecurityManager().onDisconnect(ctx.channel());
-        // 从在线表摘除会话；未认证/未入表的会话在 removeSession 内是安全的 no-op
         LinkSession session = (LinkSession) ctx.channel().attr(AttributeKey.valueOf(DefaultChannelAttributeKeys.SESSION)).get();
         if (session != null) {
             this.config.getSessionManager().removeSession(session);

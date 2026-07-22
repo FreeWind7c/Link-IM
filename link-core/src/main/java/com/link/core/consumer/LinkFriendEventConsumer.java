@@ -1,5 +1,6 @@
 package com.link.core.consumer;
 
+import com.link.common.core.event.EventType;
 import org.springframework.amqp.rabbit.annotation.RabbitHandler;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;

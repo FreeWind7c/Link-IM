@@ -2,12 +2,14 @@ package com.link.core.session.manager;
 
 import com.link.core.config.LinkCoreConfig;
 import com.link.core.session.service.LinkSession;
+import io.netty.channel.Channel;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -18,6 +20,16 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DefaultChannelSessionManager implements LinkSessionManager {
 
     private final ConcurrentHashMap<String, ConcurrentHashMap<Integer, LinkSession>> sessionMap = new ConcurrentHashMap<>();
+
+    @Override
+    public List<Channel> getChannel(String userId) {
+        List<LinkSession> session = this.getSession(userId);
+        List<Channel> channels = session.stream().map(LinkSession::getChannel)
+                .filter(v -> v != null && v.isActive())
+                .collect(Collectors.toList());
+
+        return channels;
+    }
 
     @Override
     public void addSession(LinkSession session) {

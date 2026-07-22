@@ -50,8 +50,6 @@ public class LinkPackDataDecoder {
             byteBuf.resetReaderIndex();
             return null;
         }
-
-        // 此处 readerIndex 停在 body 起始位置，body 交给调用方 readSlice(len) 读取
         return new PackData(magic,action,len,new byte[0]);
     }
 }

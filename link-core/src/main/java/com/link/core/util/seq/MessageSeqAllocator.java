@@ -1,7 +1,7 @@
 package com.link.core.util.seq;
 
 import org.springframework.core.io.ClassPathResource;
-import com.link.common.redis.RedisConstant;
+import com.link.common.redis.RedisKeys;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -50,7 +50,7 @@ public class MessageSeqAllocator {
      */
     public SeqResult allocate(String conversationId, String messageId) {
         String dedupKey = "dedup:" + conversationId + ":" + messageId;
-        String seqKey = RedisConstant.SEQ + conversationId;
+        String seqKey = RedisKeys.SEQ + conversationId;
 
         @SuppressWarnings("unchecked")
         List<Long> result = this.stringRedisTemplate.execute(
@@ -70,7 +70,7 @@ public class MessageSeqAllocator {
      * @return 当前最新 seq；该会话还未分配过任何 seq 时返回 0
      */
     public long getCurrentSeq(String chatId) {
-        String seqKey = RedisConstant.SEQ + chatId;
+        String seqKey = RedisKeys.SEQ + chatId;
         String value = this.stringRedisTemplate.opsForValue().get(seqKey);
         return value == null ? 0L : Long.parseLong(value);
     }

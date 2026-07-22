@@ -82,8 +82,6 @@ public class LinkGroupMessageEventHandler extends BasePlatFormMongoService<Group
 
     @Override
     public void handler(Object obj, Channel channel) {
-        // 本方法运行在分区单线程上（同一 chatId 串行）。只做最小临界区：分配 seq。
-        // 分配完立刻把重活甩给共享池并行，避免慢 IO 占用分区线程。
         GroupMessageInfo message = (GroupMessageInfo) obj;
         MessageSeqAllocator.SeqResult seqResult = messageSeqAllocator.allocate(message.getChatId(), message.getId());
 
@@ -94,21 +92,17 @@ public class LinkGroupMessageEventHandler extends BasePlatFormMongoService<Group
         }
         message.setSeq((int) seqResult.seq());
 
-        // seq 已定，后续均与顺序无关：落库按 seq 查、会话更新有 lt 守卫自愈、推送端上按 seq 排序。
         this.workerPool.submit(() -> processHeavy(message, channel));
     }
 
-    /** 重活：在共享线程池并行执行。@校验、引用校验、入库、会话摘要更新、@列表、回 ACK、扇出推送。 */
     private void processHeavy(GroupMessageInfo message, Channel channel) {
-        // @ 提及校验：剔除非群成员、按权限收敛 @全体、清洗悬空占位符，防伪造 @。入库前完成，落库即为可信数据。
+
         sanitizeMentions(message);
-        // 引用校验：回查原消息、校验可引用性、用服务端快照覆盖客户端传值，防伪造。入库前完成。
         sanitizeQuote(message);
         LinkAck linkAck = new LinkAck(message.getId(),message.getChatId(),message.getSeq());
         try {
             this.insert(message);
         } catch (org.springframework.dao.DuplicateKeyException e) {
-            // Redis 去重漏网的重发:DB 已有,捞出已存在那条,回 ACK 即可,不再转发
             this.config.getLinkSender().send(EventType.ACK, channel, linkAck);
             return;
         }
@@ -125,6 +119,7 @@ public class LinkGroupMessageEventHandler extends BasePlatFormMongoService<Group
                 .set(col(ChatSession::getLastMsgSeq), message.getSeq());
 
 
+
         this.getMongoTemplate().updateFirst(eq, update,ChatSession.class);
         // 被 @ 成员写入未读@我列表(与在线无关)。放在扇出前，保证离线成员重登后仍能看到@提醒。
         pushAtList(message);
@@ -132,15 +127,8 @@ public class LinkGroupMessageEventHandler extends BasePlatFormMongoService<Group
         this.messageProcessor.processor(message,channel);
     }
 
-    /** atList 上限：保留最早 10 条未读@我。 */
     private static final int AT_LIST_MAX = 10;
 
-    /**
-     * 把本条消息的 seq 追加进被 @ 成员的 {@link ChatSessionMember#getAtList()}（$push + $slice 保留最早 10 条）。
-     *
-     * <p>@全体 → 覆盖全群（排除发送者）；@个人 → 仅 mentions 里的成员（排除发送者）。
-     * 非文本、或无 @ 的消息直接跳过，不产生任何写入。与收件人在线状态无关。
-     */
     private void pushAtList(GroupMessageInfo message) {
         if (!(message.getData() instanceof TextData td)) {
             return;
@@ -179,16 +167,8 @@ public class LinkGroupMessageEventHandler extends BasePlatFormMongoService<Group
         this.getMongoTemplate().updateMulti(eq(criteria), update, ChatSessionMember.class);
     }
 
-    /** 匹配正文里的 @ 占位符：{@userId} 或 {@all}。 */
     private static final Pattern MENTION_PLACEHOLDER = Pattern.compile("\\{@(\\w+)}");
 
-    /**
-     * 校验并重建引用快照。客户端只传 {@code {msgId, seq, chatId}} 定位字段，其余快照由此回查补全，
-     * 防止客户端伪造引用内容或引用不可引用类型（红包/语音等）。
-     *
-     * <p>以下情况清空 quote（当作普通消息处理，不拒收整条）：定位字段缺失、跨会话引用、
-     * 原消息不存在、原消息类型不可引用。
-     */
     private void sanitizeQuote(GroupMessageInfo message) {
         QuoteRef quote = message.getQuote();
         if (quote == null) {

@@ -1,15 +1,12 @@
 package com.link.im.service;
 
-import com.link.common.redis.RedisConstant;
+import com.link.common.redis.RedisKeys;
 import com.link.im.entity.chat.ChatSessionMember;
-import com.link.im.mongo.BasePlatFormMongoService;
-import org.jctools.util.PortableJvmInfo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.index.PathBasedRedisIndexDefinition;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -30,7 +27,7 @@ public class LinkRedisService  {
     private MongoTemplate mongoTemplate;
 
     public Set<String> getChatMemberIds(String chatId){
-        Set<String> memberIds = redisTemplate.opsForSet().members(RedisConstant.CHAT_SESSION_MEMBER+chatId);
+        Set<String> memberIds = redisTemplate.opsForSet().members(RedisKeys.CHAT_SESSION_MEMBER+chatId);
         if (memberIds == null || memberIds.isEmpty())
         {
             Query eq = new Query(Criteria.where("chat_id").is(chatId).and("active").is(true));
@@ -40,7 +37,7 @@ public class LinkRedisService  {
                 return null;
             memberIds = chatSessionMembers.stream().map(item -> { return item.getOwnerId().toString();
             }).collect(Collectors.toSet());
-            redisTemplate.opsForSet().add(RedisConstant.CHAT_SESSION_MEMBER+chatId
+            redisTemplate.opsForSet().add(RedisKeys.CHAT_SESSION_MEMBER+chatId
                     ,memberIds.toArray(new String[0]));
         }
         return memberIds;

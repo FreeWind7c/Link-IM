@@ -62,12 +62,7 @@ public class PartitionedOrderedExecutor {
         log.info("分区有序线程池初始化完成, 分区数={}", this.partitionCount);
     }
 
-    /**
-     * 按 key 哈希路由到固定分区并提交任务。同一 key 永远进同一分区 → 串行有序。
-     *
-     * @param key  分区键（如 chatId）；为 null 时退化到 0 号分区
-     * @param task 要串行执行的任务
-     */
+
     public void submit(String key, Runnable task) {
         int idx = partitionIndex(key);
         this.partitions[idx].execute(task);

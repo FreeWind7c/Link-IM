@@ -12,7 +12,6 @@ import io.netty.handler.codec.MessageToByteEncoder;
  */
 public class TcpOutboundHandler extends MessageToByteEncoder<PackData> {
 
-    // 与 TcpInboundHandler 同理：随 pipeline 每条连接 new，依赖走构造器注入而非 @Autowired
     private final LinkPackDataEncoder linkPackDataEncoder;
 
     public TcpOutboundHandler(LinkPackDataEncoder linkPackDataEncoder) {

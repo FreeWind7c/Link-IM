@@ -1,10 +1,8 @@
 package com.link.im.processor.message;
 
 import com.link.common.core.event.EventType;
-import com.link.common.redis.RedisConstant;
 import com.link.core.config.LinkCoreConfig;
 import com.link.core.session.service.LinkSession;
-import com.link.im.entity.chat.ChatSessionMember;
 import com.link.im.entity.message.AbstractMessage;
 import com.link.im.entity.message.DefaultMessageInfo;
 import com.link.im.entity.message.GroupMessageInfo;
@@ -14,14 +12,11 @@ import com.link.im.processor.borad.LinkGroupBroadcaster;
 import com.link.im.service.LinkRedisService;
 import io.netty.channel.Channel;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * @Author: 无敌代码写手

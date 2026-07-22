@@ -44,6 +44,7 @@ public abstract class BasePlatFormMongoService<T> {
         return true;
     }
 
+    // 为空返回false
     public static boolean stringValidator(String... params){
         boolean validator = true;
         for (String param : params) {
@@ -129,6 +130,9 @@ public abstract class BasePlatFormMongoService<T> {
         return new Query(criteria);
     }
 
+    protected FindAndModifyOptions options(){
+        return new FindAndModifyOptions();
+    }
 
     protected Update update(){return new Update();}
 

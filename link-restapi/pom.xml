@@ -20,6 +20,17 @@
       后续通过 gateway 组装时桥接，或微服务阶段经 MQ，避免 api 直接硬依赖 link-core。
     -->
     <dependencies>
+        <!--
+          用 redisson 裸包而非 spring-boot-starter：后者的 RedissonAutoConfiguration 引用了
+          Spring Boot 3.x 的 org.springframework.boot.autoconfigure.data.redis.RedisProperties，
+          该类在 Boot 4.0 已迁到 org.springframework.boot.data.redis.autoconfigure 包，starter
+          尚未适配 → 启动即 ClassNotFoundException。RedissonClient 由 link-im 的 RedissonConfig 提供。
+        -->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson</artifactId>
+            <version>3.52.0</version>
+        </dependency>
         <dependency>
             <groupId>com.link</groupId>
             <artifactId>link-common</artifactId>

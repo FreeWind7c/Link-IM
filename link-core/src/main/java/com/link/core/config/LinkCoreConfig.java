@@ -49,7 +49,6 @@ public class LinkCoreConfig {
 
     private int workerGroupThreadCore = Runtime.getRuntime().availableProcessors() * 2;
 
-
     private boolean soReuseAddr = true;
 
     private boolean tcpNoDelay = true;
@@ -68,7 +67,6 @@ public class LinkCoreConfig {
 
     private int maxPoolSize = Runtime.getRuntime().availableProcessors() * 4;
 
-
     private int seqPartitionCount = Runtime.getRuntime().availableProcessors() * 2;
 
     private int queueCapacity = 500;
@@ -79,11 +77,6 @@ public class LinkCoreConfig {
 
     private LinkSessionFactory sessionFactory = new DefaultChannelSessionFactory(this);
 
-    /**
-     * 默认裸 JSON 序列化器（无业务多态适配器）。引擎层不认识具体消息类型，
-     * 多态反序列化（如 AbstractMessage 的子类还原）由 link-im 在启动时通过
-     * setLinkSerializer 注入带适配器的实例覆盖（见 link-im 的序列化配置）。
-     */
     private LinkSerializer linkSerializer = new LinkJsonSerializer();
 
     private LinkSessionManager sessionManager = new DefaultChannelSessionManager();
@@ -101,8 +94,7 @@ public class LinkCoreConfig {
     /** 全局最大并发连接数 */
     private int maxConnections = 100000;
 
-    /** 单帧 body 允许的最大字节数，防止超大 length 撑爆缓冲 */
-    private int maxFrameLength = 1024 * 1024;
+    private int maxFrameLength = 2 * 1024 * 1024;
 
     private ConnectionSecurityManager connectionSecurityManager = new ConnectionSecurityManager(this);
 

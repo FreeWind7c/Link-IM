@@ -29,6 +29,9 @@
         <module>link-oss</module>
         <module>link-gateway</module>
         <module>link-server-starter</module>
+
+        <!-- 自研注册中心：父模块聚合 server + client -->
+        <module>link-register</module>
     </modules>
 
     <properties>
@@ -89,6 +92,12 @@
             <dependency>
                 <groupId>com.link</groupId>
                 <artifactId>link-consumer</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <!-- 注册中心客户端 SDK：业务服务（restapi/oss/im/gateway）与 server 均引此，免写版本 -->
+            <dependency>
+                <groupId>com.link</groupId>
+                <artifactId>link-register-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

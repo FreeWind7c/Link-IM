@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * @Author: 无敌代码写手
@@ -54,10 +55,6 @@ public class LinkEventDispatcher {
         byte[] body = new byte[buf.readableBytes()];
         buf.readBytes(body);
         Object data = this.config.getLinkSerializer().deserialize(body, eventHandler.bodyClass());
-
-        // 顺序路由：有 partitionKey（如聊天消息返回 chatId）的事件走分区单线程池，
-        // 保证同一会话严格有序；无 key 的事件走共享池并发处理。
-        // 反序列化在 IO 线程完成，提交顺序 = 该连接的发送顺序，是有序链条的第一环。
         String partitionKey = eventHandler.partitionKey(data);
         if (partitionKey != null) {
             this.orderedExecutor.submit(partitionKey, () -> {

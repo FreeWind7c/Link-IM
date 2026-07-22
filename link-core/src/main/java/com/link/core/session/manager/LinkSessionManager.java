@@ -1,6 +1,7 @@
 package com.link.core.session.manager;
 
 import com.link.core.session.service.LinkSession;
+import io.netty.channel.Channel;
 
 import java.util.List;
 
@@ -23,4 +24,6 @@ public interface LinkSessionManager {
 
     /** 断开/下线时移除会话；只移除「仍等于自己」的那条，避免误删重连产生的新会话 */
     void removeSession(LinkSession session);
+
+    List<Channel> getChannel(String userId);
 }

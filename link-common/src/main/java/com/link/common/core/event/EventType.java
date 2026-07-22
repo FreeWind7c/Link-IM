@@ -3,7 +3,7 @@ package com.link.common.core.event;
 import java.util.HashMap;
 import java.util.Map;
 
-public enum EventType {
+public enum  EventType {
 
     HEARTBEAT((short) 1),
     ACK((short) 2),
@@ -20,8 +20,12 @@ public enum EventType {
     APPROVE_FRIEND((short) 1013),
     REMOVE_GROUP_MEMBER((short) 1014),
     JOIN_GROUP((short) 1015),
-    NOTICE_MESSAGE((short) 1016);
+    NOTICE_MESSAGE((short) 1016),
 
+    SINGLE_FORWARD((short) 1017),
+
+    MERGE_FORWARD((short) 1018),
+    RTC_CALL((short) 1019);
 
 
     private short action;
