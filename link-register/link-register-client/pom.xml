@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.link</groupId>
+        <artifactId>link-register</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>link-register-client</artifactId>
+    <name>link-register-client</name>
+    <description>注册中心客户端 SDK + gRPC 接口契约。业务服务引此模块即可自动注册、心跳、服务发现。proto 桩类由此模块生成，server 复用。</description>
+
+    <!--
+      装：src/main/proto/registry.proto（唯一契约来源）、由 protobuf 插件生成的桩类、
+          客户端 SDK（自动注册 RegistryAutoRegister、心跳、本地缓存的服务发现、负载均衡）。
+      约束：业务服务的唯一注册中心依赖入口，尽量轻——不引 web、不引 server 端逻辑。
+    -->
+    <dependencies>
+        <!-- ===== gRPC ===== -->
+        <!-- 传输层：shaded Netty，与工程 SB4 的 Netty 4.2 隔离，避免版本冲突 -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+        </dependency>
+        <!-- protobuf 序列化 + 生成的 message 类依赖 -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+        </dependency>
+        <!-- 生成的 service 桩类（Stub）依赖 -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+        </dependency>
+
+        <!-- 生成代码用到 javax.annotation.Generated / @PreDestroy 等，SB4 已切 jakarta，需显式补 javax 注解 API -->
+        <dependency>
+            <groupId>org.apache.tomcat</groupId>
+            <artifactId>annotations-api</artifactId>
+            <version>6.0.53</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Spring 容器：SDK 走 @Component / ApplicationRunner 自动注册，不需要 web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- 复用工具（IP 解析 / ID / 响应码等）；link-common 轻量、不反向依赖上层 -->
+        <dependency>
+            <groupId>com.link</groupId>
+            <artifactId>link-common</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <!-- os-maven-plugin 探测运行平台，产出 ${os.detected.classifier}，供 protoc 选对应可执行文件 -->
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>${os-maven-plugin.version}</version>
+            </extension>
+        </extensions>
+        <plugins>
+            <!-- 激活父 pom pluginManagement 中配置好的 protoc 编译（compile + compile-custom） -->
+            <plugin>
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

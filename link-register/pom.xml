@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.link</groupId>
+        <artifactId>cc-link</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>link-register</artifactId>
+    <packaging>pom</packaging>
+    <name>link-register</name>
+    <description>自研注册中心：server（注册表 / 健康检查 / 订阅推送）+ client（自动注册 / 心跳 / 服务发现 SDK）。基于 gRPC 长连接。</description>
+
+    <!--
+      模块划分：
+        link-register-client —— 接口契约（registry.proto）+ 生成的 gRPC 桩类 + 客户端 SDK。
+                                 业务服务（restapi/oss/im/gateway）只引这个。
+        link-register-server —— 注册中心本体，依赖 client 复用 proto 桩类。
+      版本管理：gRPC / protobuf 走 BOM import，集中在此父 pom；子模块引用不写版本。
+      Netty 隔离：传输层用 grpc-netty-shaded（自带 shaded Netty），与工程 SB4 的 Netty 4.2 互不干扰。
+    -->
+    <modules>
+        <module>link-register-client</module>
+        <module>link-register-server</module>
+    </modules>
+
+    <properties>
+        <!-- gRPC 与 protobuf 版本对齐：grpc-java 1.69.x 建于 protobuf 4.29.x -->
+        <grpc.version>1.69.0</grpc.version>
+        <protobuf.version>4.29.3</protobuf.version>
+        <!-- 构建期：protoc 下载与 os 分类器探测 -->
+        <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
+        <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- gRPC 全家桶版本统一（grpc-netty-shaded / grpc-protobuf / grpc-stub 等） -->
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-bom</artifactId>
+                <version>${grpc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- protobuf-java 版本统一 -->
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-bom</artifactId>
+                <version>${protobuf.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <!-- protoc 编译插件的公共配置集中在此；有 .proto 的子模块（client）引用即可生效 -->
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.xolstice.maven.plugins</groupId>
+                    <artifactId>protobuf-maven-plugin</artifactId>
+                    <version>${protobuf-maven-plugin.version}</version>
+                    <configuration>
+                        <!-- 从中央仓库拉对应平台的 protoc 可执行文件，无需本地安装 -->
+                        <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+                        <!-- gRPC 桩类生成插件 -->
+                        <pluginId>grpc-java</pluginId>
+                        <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <!-- compile: 生成 message 类；compile-custom: 生成 gRPC service 桩类 -->
+                                <goal>compile</goal>
+                                <goal>compile-custom</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+</project>

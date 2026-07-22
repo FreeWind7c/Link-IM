@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.link</groupId>
+        <artifactId>link-register</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>link-register-server</artifactId>
+    <name>link-register-server</name>
+    <description>注册中心服务端（v1 单机）：gRPC 接口 + 内存注册表 + 健康检查 + 订阅推送。可独立启动的 Spring Boot 进程。</description>
+
+    <!--
+      装：grpc/（Registry 服务实现）、core/（Registry 内存表 / HealthChecker / ConnectionManager）、
+          push/（PushEngine）、model/（Instance / Service）、RegisterServerApplication（启动类）。
+      proto 桩类复用自 link-register-client，本模块不再重复生成。
+    -->
+    <dependencies>
+        <!-- 复用 client 的 proto 桩类 + gRPC 依赖（grpc-netty-shaded/protobuf/stub 经此传递进来） -->
+        <dependency>
+            <groupId>com.link</groupId>
+            <artifactId>link-register-client</artifactId>
+        </dependency>
+
+        <!-- Spring 容器：DI + 生命周期（启动 gRPC Server、优雅停机），不需要 web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- 可独立启动/打可执行 jar；lombok 排除已在根 pom 的 pluginManagement 配好 -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

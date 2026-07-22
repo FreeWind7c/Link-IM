@@ -1,0 +1,23 @@
+# 注册中心服务端配置（v1 单机）
+spring:
+  application:
+    name: link-register-server
+# 本进程不需要 web，纯 gRPC。禁掉 web 环境避免起 tomcat 端口
+  main:
+    web-application-type: none
+
+link:
+  register:
+    server:
+      # gRPC 监听端口（避开 9090：本机 0dcloudCore 等第三方进程常占该端口）
+      port: ${REGISTER_PORT:9500}
+  registry:
+    health:
+      # 心跳超时阈值（毫秒）：超过此值未收到心跳则踢除，经验值 ≈ 客户端心跳间隔 3 倍
+      timeout-ms: ${REGISTER_HEALTH_TIMEOUT_MS:15000}
+      # 健康检查扫描周期（毫秒）
+      scan-interval-ms: ${REGISTER_HEALTH_SCAN_MS:5000}
+
+logging:
+  level:
+    com.link.register: INFO

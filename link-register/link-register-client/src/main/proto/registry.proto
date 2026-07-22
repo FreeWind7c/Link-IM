@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+// 每个 message/service 生成独立 .java 文件，便于阅读与引用
+option java_multiple_files = true;
+option java_package = "com.link.register.grpc";
+option java_outer_classname = "RegistryProto";
+
+package registry;
+
+// ============================================================
+//  注册中心 v1 契约（单机）
+//  设计取舍：v1 先用「拆开的 unary + 一个 subscribe 的 server stream」，
+//  比一上来上双向流更好理解、好调试。等 v1 跑通再合并为双向流优化。
+//  连接层保活（连接断=秒级下线）交给 gRPC keepalive；
+//  下面的 heartbeat 是应用层心跳，兜底「连接活着但进程假死」。
+// ============================================================
+service RegistryService {
+  // 注册实例：服务启动时上报自身
+  rpc register (RegisterRequest) returns (CommonResponse);
+
+  // 注销实例：优雅停机时主动摘除
+  rpc deregister (DeregisterRequest) returns (CommonResponse);
+
+  // 应用层心跳：刷新服务端的 lastHeartbeat，兜底进程假死
+  rpc heartbeat (HeartbeatRequest) returns (CommonResponse);
+
+  // 查询（拉）：一次性拿某服务的健康实例列表，客户端定时拉取兜底
+  rpc query (QueryRequest) returns (InstanceList);
+
+  // 订阅（推）：服务端 server stream，实例列表变更时主动下推
+  rpc subscribe (SubscribeRequest) returns (stream InstanceList);
+}
+
+// ---------------- 数据模型 ----------------
+
+// 一个服务实例。instanceId 由 ip:port 唯一确定
+message Instance {
+  string service_name = 1;             // 服务名，如 link-restapi
+  string ip = 2;
+  int32  port = 3;
+  double weight = 4;                   // 负载权重，默认 1.0
+  bool   healthy = 5;                  // 是否健康（服务端判定后回填）
+  bool   ephemeral = 6;                // 临时实例=true（连接断即摘除）；持久实例=false
+  map<string, string> metadata = 7;    // 自定义元数据（版本、区域等）
+}
+
+// 某服务的实例列表快照，带版本号用于推送去重/判新旧
+message InstanceList {
+  string service_name = 1;
+  repeated Instance instances = 2;
+  int64  last_modified = 3;            // 版本号（该服务最后一次变更的时间戳/递增序号）
+}
+
+// ---------------- 请求/响应 ----------------
+
+message RegisterRequest {
+  Instance instance = 1;
+}
+
+message DeregisterRequest {
+  string service_name = 1;
+  string ip = 2;
+  int32  port = 3;
+}
+
+message HeartbeatRequest {
+  string service_name = 1;
+  string ip = 2;
+  int32  port = 3;
+}
+
+message QueryRequest {
+  string service_name = 1;
+  string ip = 2;
+  string port = 3;
+  bool   only_healthy = 4;             // 是否只返回健康实例，默认调用方传 true
+}
+
+message SubscribeRequest {
+  string service_name = 1;
+}
+
+message CommonResponse {
+  bool success  = 1;
+  string message = 2;                  // 失败原因；成功可空
+}
