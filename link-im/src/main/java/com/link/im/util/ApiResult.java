@@ -96,9 +96,7 @@ public class ApiResult extends HashMap<String, Object> {
 		apiResult.put("msg", msg);
 		return apiResult;
 	}
-	
 
-	
 	public static ApiResult success() {
 		ApiResult apiResult = new ApiResult();
 		apiResult.put("code",200);
@@ -113,54 +111,10 @@ public class ApiResult extends HashMap<String, Object> {
 		return apiResult;
 	}
 
-	public static ApiResult record() {
-		ApiResult apiResult = new ApiResult();
-		apiResult.put("code",1);
-		apiResult.put("msg","SUCCESS");
-		return apiResult;
-	}
-
-	public static ApiResult collected(){
-		ApiResult apiResult = new ApiResult();
-		apiResult.put("code",0);
-		apiResult.put("msg","ERROR");
-		return apiResult;
-	}
-
-
-	public static ApiResult notBuy() {
-		ApiResult apiResult = new ApiResult();
-		apiResult.put("code",200);
-		apiResult.put("status",0);
-		apiResult.put("msg","未购买");
-		return apiResult;
-	}
-
-	public static ApiResult isBuy() {
-		ApiResult apiResult = new ApiResult();
-		apiResult.put("code",200);
-		apiResult.put("status",1);
-		apiResult.put("msg","已购买");
-		return apiResult;
-	}
-
-	public ApiResult put(Object value) {
-		super.put("msg", value);
-		return this;
-	}
-
-	public ApiResult putData(String key, Object value){
-		ApiResult apiResult = new ApiResult();
-		apiResult.put(key,value);
-		return apiResult;
-	}
-
 	public Integer getCode() {
 
 		return (Integer) this.get("code");
 	}
-
-
 
 
 	public ApiResult setToken(String token) {
@@ -168,49 +122,15 @@ public class ApiResult extends HashMap<String, Object> {
 		return this;
 	}
 
-	public ApiResult putMsg(String msg, String appHttpCodeEnum) {
-		put("msg",appHttpCodeEnum);
-		return this;
-	}
-
-	public ApiResult setAuth(Integer auth) {
-		ApiResult apiResult = new ApiResult();
-		apiResult.put("auth",auth);
-		return apiResult;
-	}
-
-	public ApiResult setTokenAndAuth(String token, Integer auth) {
-		ApiResult apiResult = new ApiResult();
-		apiResult.put("token",token);
-		apiResult.put("auth",auth);
-		return apiResult;
-	}
-
-	public ApiResult put0(String key, Object value) {
-		this.put(key,value);
-		return this;
-
-	}
-
-	public ApiResult setTask(Runnable task) {
-		ApiResult apiResult = new ApiResult();
-		apiResult.put("task",1);
-		task.run();;
-		return apiResult;
-	}
 
 	public ApiResult setSize(int size) {
 		this.put("size",size);
 		return this;
 	}
 
-	public ApiResult setUrl(String url) {
-		this.put("url",url);
-		return this;
-	}
 
-	public ApiResult setChildrenData(Object data) {
-		this.put("children",data);
+	public ApiResult setMsg(String message) {
+		this.put("msg",message);
 		return this;
 	}
 }

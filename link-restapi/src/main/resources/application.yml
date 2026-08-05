@@ -2,6 +2,16 @@
 server:
   port: ${API_PORT:8080}
 
+# 腾讯云 TRTC / IM 配置（群通话用）
+link:
+  trtc:
+    sdk-app-id: ${TRTC_SDK_APP_ID:1600154619}
+    # 应用密钥：必须通过环境变量注入，切勿把真实值写进本文件提交到仓库。
+    # 它一旦泄露，任何人都能签出任意 userID 的凭证，以他人身份登录腾讯云 IM。
+    secret-key: ${TRTC_SECRET_KEY:c01c265b2a167269ce1552f7c44590ca4b272ad3d4c3b863e07721dae486ef42}
+    # UserSig 有效期（秒）。签发后无法撤销，时长即风险窗口，默认 24 小时。
+    expire-seconds: ${TRTC_EXPIRE_SECONDS:86400}
+
 spring:
   application:
     name: link-restapi
@@ -14,6 +24,21 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}
+    mongodb:
+      # 让 @Indexed / @CompoundIndex 在启动时自动建索引。默认是 false，
+      # 不开的话红包那几个索引压根不存在——biz_detail_id 挡不住重复扣款、
+      # (packet_id,user_id) 挡不住一人多领，全靠应用层「碰运气」。
+      # 代价是启动时多一轮 createIndex（幂等，已存在即空操作）。
+      auto-index-creation: true
+      representation:
+        # BigDecimal 的落库表示法。默认 unspecified = 沿用老规矩存成字符串，
+        # 而钱包余额、红包剩余金额全靠 $inc 原子加减：
+        #   Update.inc("balance", BigDecimal) 发出去是 $inc:{balance:"500"}
+        #   -> 服务端报「Cannot increment with non-numeric argument」
+        #   Criteria.gte(amount) 也退化成字典序比较，"9" >= "10" 成立，余额校验形同虚设
+        # 注意：只改这里不够，存量文档里这些字段的 BSON 类型仍是 string，
+        # 必须先跑一次 docs/mongo/migrate-bigdecimal-to-decimal128.js 才能上线。
+        big-decimal: decimal128
   # 推送发布端：HTTP 动作触发的在线推送发到 RabbitMQ，由持连的 Netty 进程消费下发。
   rabbitmq:
     host: ${RABBITMQ_HOST:124.220.135.223}

@@ -49,8 +49,6 @@ public class LinkRtcCallEventHandler extends BasePlatFormMongoService<DefaultMes
     @Override
     public void handler(LinkRtcCall call,Channel channel) {
         List<Channel> channels = this.config.getSessionManager().getChannel(call.getRcvId());
-//        if (channels == null || channels.isEmpty())
-//            return;
         MessageSeqAllocator.SeqResult allocate = this.seqAllocator.allocate(call.getChatId(), call.getMessageId());
         if (allocate.duplicate())
             return ;
@@ -65,9 +63,8 @@ public class LinkRtcCallEventHandler extends BasePlatFormMongoService<DefaultMes
                 .setData(new CallData().setStatus(0).setStartTime(now()).setMediaType(call.getMediaType()).setEndTime(0))
                 .setTimestamp(now());
         message.setSeq((int) allocate.seq());
-        log.info("rtc call -> {}",new Gson().toJson(message));
         this.insert(message);
-
+        log.info("rtc call -> {}",new Gson().toJson(message));
         // 更新会话
         Query eq = eq(
                 where(col(ChatSession::getChatId)).is(call.getChatId())
@@ -79,6 +76,7 @@ public class LinkRtcCallEventHandler extends BasePlatFormMongoService<DefaultMes
                 .set(col(ChatSession::getLastMsgSeq), message.getSeq());
         this.getMongoTemplate().updateFirst(eq,update,ChatSession.class);
 
-        this.config.getLinkSender().send(EventType.RTC_CALL,channels,call);
+        if (channels != null)
+            this.config.getLinkSender().send(EventType.RTC_CALL,channels,call);
     }
 }

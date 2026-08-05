@@ -32,6 +32,7 @@ public class LinkRtcAcceptEventHandler extends BasePlatFormMongoService<DefaultM
 
     @Override
     public void handler(LinkRtcCall call,Channel channel) {
+
         List<Channel> channels = this.config.getSessionManager().getChannel(call.getRcvId());
         if (channels == null || channels.isEmpty())
             return;
@@ -39,7 +40,7 @@ public class LinkRtcAcceptEventHandler extends BasePlatFormMongoService<DefaultM
                 where(col(DefaultMessageInfo::getId)).is(call.getMessageId())
         );
         Update update = update()
-                .set("data.status", 3)
+                .set("data.status", 1)
                 .set("data.end_time",now());
         this.updateFirst(eq,update);
         this.config.getLinkSender().send(EventType.RTC_CALL,channels,call);

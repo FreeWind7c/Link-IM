@@ -25,7 +25,12 @@ public enum  EventType {
     SINGLE_FORWARD((short) 1017),
 
     MERGE_FORWARD((short) 1018),
-    RTC_CALL((short) 1019);
+    RTC_CALL((short) 1019),
+
+    RTC_GROUP_CALL((short) 1020),
+
+    USER_EXIT((short) 1021), UPDATE_RED_PACKET((short) 1022);
+
 
 
     private short action;

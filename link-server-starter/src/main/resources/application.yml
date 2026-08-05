@@ -5,6 +5,12 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:localhost}
+    mongodb:
+      representation:
+        # 必须和 link-restapi 保持一致：两个进程读写的是同一批文档。
+        # 本进程虽然不做 $inc，但会落红包消息（RedPackData.amount 也是 BigDecimal），
+        # 一边写 Decimal128 一边写 String 的话，同一个字段在库里就出现两种 BSON 类型。
+        big-decimal: decimal128
   mongodb:
     uri: ${MONGO_URI:mongodb://admin:f3Kx%239mPqL2vNzR7wYcJ4sBt@124.220.135.223:27017/im?authSource=admin&directConnection=true&serverSelectionTimeoutMS=20000&connectTimeoutMS=20000}
   # 推送消费端：link-consumer 的 @RabbitListener 在本进程消费 DirectPushCommand，

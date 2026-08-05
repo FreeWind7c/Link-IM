@@ -15,7 +15,7 @@ import java.math.BigDecimal;
  */
 @Data
 @Accessors(chain = true)
-@Document(collection = WalletInfo.COLLECTION_NAME)
+@Document(collection = WalletFlow.COLLECTION_NAME)
 public class WalletFlow  extends BaseEntity {
     public static final String COLLECTION_NAME = "wallet_flow";
 
@@ -30,7 +30,7 @@ public class WalletFlow  extends BaseEntity {
     @Field("in_out")
     private int inOut;
     /**
-     * 业务类型 1=普通转账，2=红包转账，3=商户转账，4=链上转账，5=后台转账,6提现,7.退款
+     * 业务类型 1=红包，2=转账,3=充值,4=提现,5=退款,6=后台充值
      */
     @Field("biz_type")
     private int bizType;
@@ -44,7 +44,5 @@ public class WalletFlow  extends BaseEntity {
      */
     private String remark;
 
-
-
-
+    private long timestamp;
 }

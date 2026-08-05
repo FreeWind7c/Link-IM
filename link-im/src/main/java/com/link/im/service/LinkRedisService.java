@@ -43,4 +43,13 @@ public class LinkRedisService  {
         return memberIds;
     }
 
+    /**
+     * 取某用户某一端当前有效的 token（登录时由 UserInfoService.userAuth 写入）。
+     * 返回 null 表示该端从未登录过、或登录态已被清除。
+     */
+    public String getUserToken(String userId, int platform) {
+        Object token = redisTemplate.opsForHash().get(RedisKeys.USER_TOKEN + userId, String.valueOf(platform));
+        return token == null ? null : token.toString();
+    }
+
 }

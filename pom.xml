@@ -47,6 +47,11 @@
              Spring Cloud Alibaba 2025.1.0.0（Nacos client 3.1.1），二者同建于 SC parent 5.0.0。 -->
         <spring-cloud.version>2025.1.2</spring-cloud.version>
         <spring-cloud-alibaba.version>2025.1.0.0</spring-cloud-alibaba.version>
+        <!-- 不要覆盖 junit-jupiter.version 把 JUnit 降到 5.x！该属性名是 Spring Boot 4 BOM
+             用来 import org.junit:junit-bom 的，改它会整体切版本。而 spring-test 7 的
+             SpringExtension 是照 JUnit 6 API 编译的（Store.computeIfAbsent，5.x 里叫
+             getOrComputeIfAbsent），降级后测试一进 beforeAll 就 NoSuchMethodError。
+             JUnit 版本交给 SB4 BOM 管（当前 6.0.3）。 -->
     </properties>
 
     <!-- 仅声明版本，不实际引入。子模块按需 <dependency> 时无需再写 version -->

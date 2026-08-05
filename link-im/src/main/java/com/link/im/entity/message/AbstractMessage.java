@@ -22,6 +22,9 @@ import org.springframework.data.mongodb.core.mapping.Field;
         @CompoundIndex(name = "idx_chat_seq", def = "{'chat_id':1,'seq':1}"),
         @CompoundIndex(name = "idx_chat_time", def = "{'chat_id':1,'timestamp':1}"),
         @CompoundIndex(name = "idx_chat_type_time", def = "{'chat_id':1,'type':1,'timestamp':1}"),
+        // 群通话降级关联：被叫未拿到 userData 时靠 data.call_id 定位通话记录。
+        // sparse=true —— 只有群通话记录才有这个字段，其余消息不进索引。
+        @CompoundIndex(name = "idx_call_id", def = "{'data.call_id':1}", sparse = true),
 })
 public abstract class AbstractMessage {
 

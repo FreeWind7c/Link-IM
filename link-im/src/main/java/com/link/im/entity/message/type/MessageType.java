@@ -11,6 +11,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public enum MessageType {
+    SYSTEM_MESSAGE(1000, SystemData.class, null, false),
+
     TEXT_MESSAGE(1001, TextData.class, null, true),
     IMAGE_MESSAGE(1002, ImageData.class, "[图片]", true),
     VIDEO_MESSAGE(1003, VideoData.class, "[视频]", true),

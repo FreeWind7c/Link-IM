@@ -47,3 +47,4 @@ link:
       whitelist:
         - /api/user/auth
         - /api/user/register
+        - /api/trtc/call-back

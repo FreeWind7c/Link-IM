@@ -16,7 +16,8 @@ public enum RTCEventType {
     OFFER((short) 4),
     ANSWER((short) 5),
     CANDIDATE((short) 6),
-    HANG_UP((short) 7);
+    HANG_UP((short) 7),
+    UNANSWERED((short) 8);
 
     private short action;
 

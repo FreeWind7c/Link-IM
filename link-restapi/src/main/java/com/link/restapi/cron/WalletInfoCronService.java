@@ -1,18 +1,12 @@
 package com.link.restapi.cron;
 
-import ch.qos.logback.classic.pattern.SyslogStartConverter;
-import com.link.im.entity.wallet.WalletFlow;
-import com.link.im.entity.wallet.WalletRefund;
 import com.link.im.entity.wallet.WalletWithdraw;
-import com.link.restapi.push.RemotePushPublisher;
-import com.link.restapi.wallet.service.WalletInfoService;
-import io.lettuce.core.api.async.RedisTransactionalAsyncCommands;
+import com.link.restapi.module.wallet.service.WalletInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -51,11 +45,11 @@ public class WalletInfoCronService {
         for (WalletWithdraw item : walletWithdraws) {
             String key = item.getId().toHexString();
             // 校验是否已经处理过
-            if ( Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(key, true, 30L,TimeUnit.SECONDS))  && item.getStatus() == 0 ){
+            if ( Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(key, "1", 30L,TimeUnit.SECONDS))  && item.getStatus() == 0 ){
                 // 执行打款操作
                 walletInfoService.walletWithdraw(item);
                 // 处理成功加入redis
-                redisTemplate.opsForValue().setIfAbsent(key,true, 60,TimeUnit.MINUTES);
+                redisTemplate.opsForValue().setIfAbsent(key,"1", 60,TimeUnit.MINUTES);
             }
         }
     }

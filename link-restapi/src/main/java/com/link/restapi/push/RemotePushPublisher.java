@@ -6,25 +6,16 @@ import com.link.common.core.mq.FanoutPushCommand;
 import com.link.common.core.mq.DirectPushCommand;
 import com.link.common.core.mq.PushMqConst;
 import com.link.im.entity.wallet.*;
-import com.link.restapi.wallet.service.WalletInfoService;
+import com.link.restapi.module.wallet.service.WalletInfoService;
 import lombok.extern.slf4j.Slf4j;
-import org.bson.types.ObjectId;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.SpringApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
-import java.math.BigDecimal;
 import java.util.Collection;
-import java.util.List;
-import java.util.Set;
 
 /**
  * 远程推送发布端。HTTP 进程不持长连接，无法直接 channel.write；本类把「请推给某用户」封成

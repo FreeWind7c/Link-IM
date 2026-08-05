@@ -9,6 +9,7 @@ import com.link.im.entity.message.DefaultMessageInfo;
 import com.link.im.mongo.BasePlatFormMongoService;
 import io.netty.channel.Channel;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
@@ -32,9 +33,8 @@ public class LinkRtcHangUpEventHandler extends BasePlatFormMongoService<DefaultM
 
     @Override
     public void handler(LinkRtcCall call,Channel channel) {
-        List<Channel> channels = this.config.getSessionManager().getChannel(call.getRcvId());
-        if (channels == null || channels.isEmpty())
-            return;
+        List<Channel> rcvChannels = this.config.getSessionManager().getChannel(call.getRcvId());
+        List<Channel> sndChannels = this.config.getSessionManager().getChannel(call.getSndId());
 
         Query eq = eq(
                 where(col(DefaultMessageInfo::getId)).is(call.getMessageId())
@@ -42,9 +42,19 @@ public class LinkRtcHangUpEventHandler extends BasePlatFormMongoService<DefaultM
         Update update = update()
                 .set("data.status", 2)
                 .set("data.end_time",now());
-        this.updateFirst(eq,update);
+        FindAndModifyOptions options = options();
+        options.returnNew(true);
+        options.upsert(false);
+        DefaultMessageInfo messageInfo = this.findAndModify(eq, update, options);
 
+        if (messageInfo == null)
+            return;
+        if (rcvChannels != null && !rcvChannels.isEmpty())
+        {
+            this.config.getLinkSender().send(EventType.RTC_CALL,rcvChannels,call);
+            this.config.getLinkSender().send(EventType.DEFAULT_MESSAGE,rcvChannels,messageInfo);
+        }
 
-        this.config.getLinkSender().send(EventType.RTC_CALL,channels,call);
+        this.config.getLinkSender().send(EventType.DEFAULT_MESSAGE,sndChannels,messageInfo);
     }
 }

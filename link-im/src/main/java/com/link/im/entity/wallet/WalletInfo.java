@@ -6,6 +6,7 @@ import lombok.experimental.Accessors;
 import org.bson.types.ObjectId;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.redis.core.index.PathBasedRedisIndexDefinition;
 
 import java.math.BigDecimal;
 
@@ -23,8 +24,11 @@ public class WalletInfo extends BaseEntity {
     @Field("user_id")
     private ObjectId userId;
 
+    private String password;
+
     private BigDecimal balance;
 
+    // 是否禁止使用
     private boolean disabled;
 
 }

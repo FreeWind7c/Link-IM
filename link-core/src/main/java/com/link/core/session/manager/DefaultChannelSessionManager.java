@@ -23,12 +23,13 @@ public class DefaultChannelSessionManager implements LinkSessionManager {
 
     @Override
     public List<Channel> getChannel(String userId) {
-        List<LinkSession> session = this.getSession(userId);
-        List<Channel> channels = session.stream().map(LinkSession::getChannel)
-                .filter(v -> v != null && v.isActive())
-                .collect(Collectors.toList());
-
-        return channels;
+            List<LinkSession> session = this.getSession(userId);
+            if (session == null)
+                return null;
+            List<Channel> channels = session.stream().map(LinkSession::getChannel)
+                    .filter(v -> v != null && v.isActive())
+                    .collect(Collectors.toList());
+            return channels;
     }
 
     @Override

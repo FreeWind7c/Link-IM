@@ -1,15 +1,21 @@
 package com.link.restapi.cron;
 
+import com.link.common.core.event.EventType;
+import com.link.common.core.model.redpack.LinkRedPacketUpdate;
 import com.link.common.redis.RedisKeys;
-import com.link.common.util.id.SnowflakeIdGenerator;
+import com.link.im.constants.redpack.RedPacketStatusKeys;
+import com.link.im.constants.wallet.WalletFlowBizTypeKeys;
+import com.link.im.constants.wallet.WalletInOutKeys;
 import com.link.im.entity.redpack.RedPacket;
-import com.link.im.entity.redpack.RedPacketRecord;
 import com.link.im.entity.wallet.WalletFlow;
 import com.link.im.entity.wallet.WalletInfo;
-import com.link.restapi.redpack.service.RedPackService;
+import com.link.restapi.module.redpack.service.RedPackService;
+import com.link.restapi.push.RemotePushPublisher;
 import com.mongodb.client.result.UpdateResult;
+import lombok.extern.slf4j.Slf4j;
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -18,18 +24,29 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 
 /**
+ * 过期红包退款。
+ *
+ * <p>原来还有一个 {@code verifyRedPacketRecord}，用来补偿「记录已落库但没打钱」的中间态。
+ * 现在抢红包的扣库存 / 记记录 / 加钱 / 记流水在同一个事务里，这个中间态根本不存在，
+ * 那个方法已整体删除（它调的 {@code byTrx(record, null)} 还必然 NPE）。
+ *
  * @Author: 无敌代码写手
  * @CreateTime: 2026年07月19日
  */
-
+@Slf4j
 @Component
 public class RedPacketCronService {
 
+
+    private static final int BATCH_LIMIT = 200;
 
     @Autowired
     private MongoTemplate mongoTemplate;
@@ -40,61 +57,112 @@ public class RedPacketCronService {
     @Autowired
     private RedPackService redPackService;
 
+    @Autowired
+    private RemotePushPublisher pushPublisher;
+
+    /** 自注入调事务方法。类内直调走的是原始对象，@Transactional 不生效 */
+    @Autowired
+    @Lazy
+    private RedPacketCronService self;
 
     /**
-     * 扫描红包记录，查看是否有已抢到红包，但是未给用户打钱的记录
+     * 扫过期红包，把没抢完的剩余金额原路退回发送者。
      */
-    @Scheduled(fixedRate =  60 * 1000)
-    public void verifyRedPacketRecord(){
+    @Scheduled(fixedRate = 5 * 60 * 1000)
+    public void verifyRedPacket() {
         long now = System.currentTimeMillis();
-        // 字段无 @Field，库里是驼峰 dutTime，不能写 dut_time（写了永远查不到）
-        List<RedPacketRecord> records = this.mongoTemplate.find(new Query(Criteria.where("status").is(0)
-                .and("dutTime").lte(now)), RedPacketRecord.class);
-        for (RedPacketRecord record : records) {
-            if (record.getStatus() == 0) {
-                redPackService.byTrx(record);
+        // 用属性名而不是库内字段名：RedPacket 的 expireTime/remainCount 上有 @Field 映射，
+        // 写属性名 Spring 的 QueryMapper 才会翻译成 expire_time/remain_count，顺带做类型转换
+        Query query = new Query(Criteria.where("status").is(RedPacketStatusKeys.IN_PROGRESS)
+                .and("expire_time").lte(now)
+                .and("remain_count").gt(0));
+        query.limit(BATCH_LIMIT);
+
+        List<RedPacket> packets = this.mongoTemplate.find(query, RedPacket.class);
+        for (RedPacket packet : packets) {
+            try {
+                RedPacket before = self.doExpire(packet, now);
+                if (before == null)
+                    continue; // 没抢到翻转权（上一轮或另一个实例已处理），绝不重复退款
+
+                // ---------- 事务外后置：commit 之后再动 Redis 和 MQ ----------
+                this.redisTemplate.delete(RedisKeys.RED_PACKET + before.getId().toHexString());
+                pushExpired(before);
+            } catch (Exception e) {
+                // 单个红包失败不能带崩整轮，下一轮还会再扫到它（status 仍是 0）
+                log.error("过期红包退款失败 packetId={}, sndId={}", packet.getId(), packet.getSndId(), e);
             }
         }
     }
 
-
     /**
-     * 扫描过期红包
+     * 单个过期红包的退款事务：翻转状态、退钱、记流水、把气泡置灰，一起成或一起废。
+     *
+     * @return 翻转<b>之前</b>的红包文档；返回 null 表示没抢到翻转权，本次什么都没做
      */
-    @Scheduled(fixedRate = 5 * 60 * 1000)
-    public void verifyRedPacket(){
-        long now = System.currentTimeMillis();
-        // 字段无 @Field，用驼峰 expireTime/remainCount；已过期是 expireTime <= now（不是 >=）
-        List<RedPacket> redPackets = this.mongoTemplate.find(new Query(Criteria.where("expireTime").lte(now)
-                .and("status").is(0).and("remainCount").gt(0)), RedPacket.class);
-        for (RedPacket v : redPackets) {
+//    @Transactional(rollbackFor = Exception.class)
+    public RedPacket doExpire(RedPacket packet, long now) {
+        Query cas = new Query(Criteria.where("_id").is(packet.getId())
+                .and("status").is(RedPacketStatusKeys.IN_PROGRESS));
+        Update flip = new Update().set("status", RedPacketStatusKeys.REFUND);
+        RedPacket before = this.mongoTemplate.findAndModify(cas, flip,
+                new FindAndModifyOptions().returnNew(false).upsert(false), RedPacket.class);
+        if (before == null)
+            return null;
 
-            // CAS：把红包 0->2 并翻子红包，同时用 findAndModify 原子拿到「翻转前」的文档。
-            // 只有抢到翻转权(旧文档非 null)的线程才退款；退款金额取翻转瞬间的真实 remainAmount，
-            // 而不是 find 时的旧快照，避免与并发抢红包竞态导致超额退款。
-            Query eq = new Query(Criteria.where("_id").is(v.getId()).and("status").is(0));
-            Update update = new Update()
-                    .set("status", 2)
-                    .set("children.$[item].status", 2)
-                    .filterArray(Criteria.where("item.status").is(0));
+        BigDecimal remain = before.getRemainAmount();
+        if (remain != null && remain.signum() > 0) {
+            // ② 退款。sndId 库里是 ObjectId，这里必须显式 new ObjectId(...)：
+            //    原来传的是 String，条件永远不命中，updateFirst 静默返回 0，退款一直是失效的
+            ObjectId sndId = new ObjectId(before.getSndId());
+            UpdateResult refund = this.mongoTemplate.updateFirst(
+                    new Query(Criteria.where("user_id").is(sndId)),
+                    new Update().inc("balance", remain), WalletInfo.class);
 
-            FindAndModifyOptions opt = new FindAndModifyOptions().returnNew(false); // 要翻转前的文档
-            RedPacket old = this.mongoTemplate.findAndModify(eq, update, opt, RedPacket.class);
-            if (old == null)
-                continue; // 没抢到翻转权（别人/上一轮已处理），跳过，绝不重复退款
+            // ③ 检查结果。不检查的话钱没退回去也悄无声息，红包却已经被标成「已退款」
+            if (refund.getMatchedCount() != 1)
+                throw new IllegalStateException("过期红包退款失败，发送者钱包不存在 packetId="
+                        + before.getId().toHexString() + ", sndId=" + before.getSndId());
 
-            BigDecimal remainAmount = old.getRemainAmount(); // 翻转瞬间的真实剩余
-            // 红包剩余金额原路退回发送者
-            Query query = new Query(Criteria.where("user_id").is(v.getSenderId()));
-            Update inc = new Update().inc("balance", remainAmount);
-            this.mongoTemplate.updateFirst(query,inc, WalletInfo.class);
-
-            // 删除redis中的红包信息
-            redisTemplate.delete(RedisKeys.RED_PACKET+v.getId().toHexString());
-
+            // ④ 退款流水。没有它，用户账单里会凭空多出一笔钱
+            WalletFlow flow = new WalletFlow()
+                    .setUserId(sndId)
+                    .setAmount(remain)
+                    .setInOut(WalletInOutKeys.IN)
+                    .setBizType(WalletFlowBizTypeKeys.REFUND)
+                    .setBizDetailId(before.getId().toHexString())
+                    .setRemark("红包过期退款")
+                    .setTimestamp(now);
+            flow.setCreatedTime(now);
+            this.mongoTemplate.insert(flow);
         }
+
+        // ⑤ 把会话里的红包气泡置灰。定时任务没有客户端可以采信，
+        //    只能靠红包自己记的 messageId 定位这条消息（RedPacket.messageId 就是为此而加）
+        if (before.getMessageId() != null) {
+            this.mongoTemplate.updateFirst(
+                    new Query(Criteria.where("_id").is(before.getMessageId())),
+                    new Update().set("data.status", RedPacketStatusKeys.REFUND),
+                    redPackService.messageClass(before));
+        }
+
+        return before;
     }
 
+    private void pushExpired(RedPacket before) {
+        Collection<String> targets = redPackService.pushTargets(before);
+        if (CollectionUtils.isEmpty(targets))
+            return;
 
-
+        LinkRedPacketUpdate event = new LinkRedPacketUpdate()
+                .setChatId(before.getChatId())
+                .setMessageId(before.getMessageId())
+                .setPacketId(before.getId().toHexString())
+                .setStatus(RedPacketStatusKeys.REFUND)
+                // 过期退款没有领取人
+                .setClaimantId(null)
+                .setRemainCount(before.getRemainCount())
+                .setRemainAmount(before.getRemainAmount());
+        this.pushPublisher.push(EventType.UPDATE_RED_PACKET, targets, event);
+    }
 }

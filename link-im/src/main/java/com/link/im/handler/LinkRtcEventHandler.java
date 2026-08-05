@@ -1,5 +1,6 @@
 package com.link.im.handler;
 
+import com.google.gson.Gson;
 import com.link.common.core.event.EventType;
 import com.link.common.core.event.RTCEventType;
 import com.link.common.core.model.call.LinkRtcCall;
@@ -36,6 +37,7 @@ public class LinkRtcEventHandler implements EventHandler {
     public void handler(Object obj, Channel channel) {
         LinkRtcCall call = (LinkRtcCall) obj;
         RTCEventHandler eventHandler = factory.getEventHandler(RTCEventType.fromAction(call.getEventType()));
+
         if (eventHandler == null){
             log.error("找不到此RTC事件 -> {}",call.getEventType());
             return;
