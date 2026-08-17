@@ -3,7 +3,7 @@ package com.link.im.processor.message;
 import com.link.common.core.event.EventType;
 import com.link.core.config.LinkCoreConfig;
 import com.link.core.session.service.LinkSession;
-import com.link.im.entity.message.AbstractMessage;
+import com.link.im.entity.base.BaseMessage;
 import com.link.im.entity.message.DefaultMessageInfo;
 import com.link.im.entity.message.GroupMessageInfo;
 import com.link.im.mongo.BasePlatFormMongoService;
@@ -35,8 +35,8 @@ public class LinkGroupMessageProcessor extends BasePlatFormMongoService<DefaultM
     private LinkGroupBroadcaster broadcaster;
 
     @Override
-    public void processor(AbstractMessage abstractMessage, Channel channel) {
-        GroupMessageInfo message = (GroupMessageInfo) abstractMessage;
+    public void processor(BaseMessage baseMessage, Channel channel) {
+        GroupMessageInfo message = (GroupMessageInfo) baseMessage;
         Set<String> memberIds = redisService.getChatMemberIds(message.getChatId());
         ArrayList<Channel> channels = new ArrayList<>();
 

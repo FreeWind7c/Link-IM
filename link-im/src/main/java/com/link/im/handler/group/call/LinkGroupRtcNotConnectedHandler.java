@@ -1,5 +1,6 @@
 package com.link.im.handler.group.call;
 
+import com.google.gson.Gson;
 import com.link.common.core.event.GroupRTCEventType;
 import com.link.common.core.model.call.LinkRtcGroupCall;
 import com.link.core.event.handler.GroupRTCEventHandler;
@@ -34,6 +35,7 @@ public class LinkGroupRtcNotConnectedHandler extends BaseGroupCallHandler implem
 
     @Override
     public void handler(LinkRtcGroupCall call, Channel channel) {
+        log.info("主动取消：" + new Gson().toJson(call));
         // 上报者自己退出。若他此前已是终态（比如先报过 REJECT），条件更新会落空，符合预期
         advanceParticipant(call, CallParticipant.LEFT);
         settleIfFinished(call);

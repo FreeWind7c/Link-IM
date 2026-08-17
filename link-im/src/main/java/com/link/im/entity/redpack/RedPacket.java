@@ -3,6 +3,7 @@ package com.link.im.entity.redpack;
 import com.link.im.entity.base.BaseEntity;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.bson.types.ObjectId;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -10,6 +11,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 群拼手气红包（资金池）
@@ -55,10 +58,10 @@ public class RedPacket extends BaseEntity {
 
     /** 发送者 */
     @Field("snd_id")
-    private String sndId;
+    private ObjectId sndId;
 
     @Field("rcv_id")
-    private String rcvId;
+    private ObjectId rcvId;
 
     @Field("chat_id")
     private String chatId;
@@ -93,5 +96,14 @@ public class RedPacket extends BaseEntity {
     /** 祝福语 */
     private String blessing;
 
+    /**
+     * 领取人 ID 列表，用于快速查询谁领取了这个红包。
+     *
+     * <p>冗余字段，权威数据在 {@code RedPacketRecord} 表。
+     * 抢红包时通过 $addToSet 原子更新，避免每次都 join RedPacketRecord 表查询。
+     * 这样前端渲染气泡、推送事件时都能快速获取领取人列表。
+     */
+    @Field("claimant_ids")
+    private List<ObjectId> claimantIds = new ArrayList<>();
 
 }

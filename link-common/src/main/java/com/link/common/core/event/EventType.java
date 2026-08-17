@@ -29,7 +29,9 @@ public enum  EventType {
 
     RTC_GROUP_CALL((short) 1020),
 
-    USER_EXIT((short) 1021), UPDATE_RED_PACKET((short) 1022);
+    USER_EXIT((short) 1021),
+    UPDATE_RED_PACKET((short) 1022),
+    BOT_MESSAGE((short) 1023);
 
 
 

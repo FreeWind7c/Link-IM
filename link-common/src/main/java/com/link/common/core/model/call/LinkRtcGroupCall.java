@@ -34,6 +34,8 @@ public class LinkRtcGroupCall {
     /** 上报方用户 ID。服务端必须用 Channel 上的登录态校验，不能直接信任 */
     private String sndId;
 
+    private String groupId;
+
     /**
      * 事件所描述的目标用户 ID。
      * <ul>

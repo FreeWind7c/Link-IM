@@ -1,16 +1,33 @@
 package com.link.restapi.module.trtc.controller;
 
 import com.alibaba.fastjson.JSONObject;
+import com.link.core.util.seq.MessageSeqAllocator;
+import com.link.im.constants.publisher.PublisherRouterKeys;
+import com.link.im.constants.trtc.TrtcCallStatusCode;
+import com.link.im.entity.base.BaseMessage;
+import com.link.im.entity.data.NoticeData;
+import com.link.im.entity.data.notice.TrtcCallNoticeData;
+import com.link.im.entity.message.DefaultMessageInfo;
+import com.link.im.entity.message.GroupMessageInfo;
+import com.link.im.entity.message.type.MessageType;
+import com.link.im.entity.rtc.TrtcCallInfo;
 import com.link.im.util.ApiResult;
+import com.link.restapi.module.trtc.model.dto.LinkTrtcRoomIdDTO;
 import com.link.restapi.module.trtc.service.LinkTrtcService;
+import com.link.restapi.push.RemotePushPublisher;
+import com.link.restapi.utils.LinkTrtcSignUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.types.ObjectId;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.PublicKey;
 
 /**
  * TRTC 相关接口。
@@ -29,6 +46,26 @@ public class LinkTrtcController {
     @Autowired
     private LinkTrtcService trtcService;
 
+    @Autowired
+    private LinkTrtcSignUtil trtcSignUtil;
+
+    @Autowired
+    private MongoTemplate mongoTemplate;
+
+    @Autowired
+    private RemotePushPublisher pushPublisher;
+
+    @Autowired
+    private MessageSeqAllocator allocator;
+
+
+    @PostMapping("/start-call")
+    public ApiResult startCall(@RequestBody LinkTrtcRoomIdDTO dto){
+        return trtcService.startCall(dto);
+    }
+
+
+
 
     @PostMapping("/call-back")
     public ApiResult trtcCallBack(	@RequestHeader("Sign") String sign,
@@ -38,6 +75,25 @@ public class LinkTrtcController {
         String rawBody = new String(bodyBytes, StandardCharsets.UTF_8);
         log.info("trtc call-back -> {}" , rawBody);
         response.setStatus(200);
+        JSONObject data = JSONObject.parseObject(rawBody);
+        JSONObject eventInfo = data.getJSONObject("EventInfo");
+        switch (data.getIntValue("EventType"))
+        {
+            // 解散房间
+            case 102:
+                trtcService.dissolveRoom(eventInfo);
+                break;
+            // 加入房间
+            case 103:
+                trtcService.joinRoom(eventInfo);
+                break;
+            // 离开房间
+            case 104:
+                trtcService.leaveRoom(eventInfo);
+                break;
+            default:
+                log.error("未知事件!");
+        }
         return ApiResult.success();
     }
 
@@ -53,6 +109,8 @@ public class LinkTrtcController {
      */
     @GetMapping("/user-sig")
     public ApiResult userSig(@RequestHeader(value = "X-User-Id", required = false) String userId) {
-        return trtcService.userSig(userId);
+        return trtcSignUtil.userSig(userId);
     }
+
+
 }

@@ -5,9 +5,11 @@ import com.link.common.channel.DefaultChannelAttributeKeys;
 import com.link.common.core.event.EventType;
 import com.link.common.core.event.RTCEventType;
 import com.link.common.core.model.call.LinkRtcCall;
+import com.link.common.redis.RedisKeys;
 import com.link.core.config.LinkCoreConfig;
 import com.link.core.event.handler.RTCEventHandler;
 import com.link.core.session.service.LinkSession;
+import com.link.im.constants.redpack.RedPacketStatusKeys;
 import com.link.im.entity.data.CallData;
 import com.link.im.entity.message.DefaultMessageInfo;
 import com.link.im.mongo.BasePlatFormMongoService;
@@ -42,16 +44,20 @@ public class LinkRtcCancelEventHandler extends BasePlatFormMongoService<DefaultM
 
     @Override
     public void handler(LinkRtcCall call,Channel channel) {
+        print("cancel:",call);
         List<Channel> rcvChannels = this.config.getSessionManager().getChannel(call.getRcvId());
         List<Channel> sndChannels = this.config.getSessionManager().getChannel(call.getSndId());
-        DefaultMessageInfo defaultMessageInfo = this.findById(call.getMessageId());
+        DefaultMessageInfo defaultMessageInfo = this.findById(new ObjectId(call.getMessageId()));
         if (defaultMessageInfo == null)
             return;
 
+
+        CallData data = (CallData) defaultMessageInfo.getBaseData();
+        data.setStatus(defaultMessageInfo.getSndId().equals(call.getSndId()) ? 4 : 3);
         Query eq = eq(
                 where(col(DefaultMessageInfo::getId)).is(call.getMessageId())
         );
-        Update update = update().set("data.status", defaultMessageInfo.getSndId().equals(call.getSndId()) ? 4 : 3);
+        Update update = update().set("data", data.toJson());
         FindAndModifyOptions options = options();
         options.returnNew(true);
         options.upsert(false);

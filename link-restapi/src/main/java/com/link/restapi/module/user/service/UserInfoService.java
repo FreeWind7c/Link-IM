@@ -1,7 +1,14 @@
 package com.link.restapi.module.user.service;
 
 import com.link.common.redis.RedisKeys;
+import com.link.common.util.id.ChatIdGenerator;
 import com.link.common.util.id.LinkUserNoGenerator;
+import com.link.im.constants.friend.LinkFriendSource;
+import com.link.im.constants.session.ChatSessionCategoryKeys;
+import com.link.im.constants.user.UserCategoryKeys;
+import com.link.im.entity.chat.ChatSession;
+import com.link.im.entity.chat.ChatSessionMember;
+import com.link.im.entity.friend.FriendInfo;
 import com.link.im.enums.gloabl.GlobalCode;
 import com.link.im.util.MD5Util;
 import com.link.im.enums.user.UserApiCode;
@@ -22,7 +29,9 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -54,9 +63,27 @@ public class UserInfoService extends BasePlatFormMongoService<UserInfo> {
             return ApiResult.error(UserApiCode.USER_EXIST);
         if (!dto.getPassword().equals(dto.getRePassword()))
             return ApiResult.error(UserApiCode.PASSWORD_NOT_MATCH);
-        UserInfo linkUser = dto.toUserInfo().setUserNo(nextUnique(UserInfo::getUserNo, LinkUserNoGenerator::next));
+        UserInfo linkUser = dto.toUserInfo().setUserNo(nextUnique(UserInfo::getUserNo, LinkUserNoGenerator::next)).setCategory(0);
         this.insert(linkUser);
+        // 创建机器人好友与会话
+        UserInfo boot = this.findOne(eq(where(col(UserInfo::getCategory)).is(UserCategoryKeys.BOOT)));
+        createFriend(linkUser,boot);
+        createChat(linkUser,boot);
         return ApiResult.success(UserApiCode.REGISTER_SUCCESS);
+    }
+
+    private void createChat(UserInfo linkUser, UserInfo boot) {
+        ChatSession session = new ChatSession().createSingle(ChatIdGenerator.nextId(linkUser.getId().toHexString(), boot.getId().toHexString()), ChatSessionCategoryKeys.BOOT);
+        ChatSessionMember s1 = new ChatSessionMember().createSingle(linkUser.getId().toHexString(), boot.getId().toHexString(), session.getChatId());
+        ChatSessionMember s2 = new ChatSessionMember().createSingle(boot.getId().toHexString(), linkUser.getId().toHexString(),  session.getChatId());
+        this.getMongoTemplate().insert(session);
+        this.getMongoTemplate().insert(List.of(s1,s2),ChatSessionMember.class);
+    }
+
+    private void createFriend(UserInfo linkUser, UserInfo boot) {
+        FriendInfo f1 = new FriendInfo().create(linkUser.getId().toHexString(), boot.getId().toHexString(), LinkFriendSource.SYS);
+        FriendInfo f2 = new FriendInfo().create( boot.getId().toHexString(), linkUser.getId().toHexString(), LinkFriendSource.SYS);
+        this.getMongoTemplate().insert(List.of(f1, f2),FriendInfo.class);
     }
 
     private String createToken(UserInfo user, int platform) {

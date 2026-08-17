@@ -294,18 +294,18 @@ public class GroupInfoService extends BasePlatFormMongoService<GroupInfo> {
      * @param data 具体的通知数据（JoinGroupNoticeData / RemoveGroupNoticeData 等 NoticeData 子类）
      */
     private GroupMessageInfo persistGroupNotice(String chatId, String sndId, NoticeData data) {
-        String id = LinkID.nextIdStr();
-        long seq = messageSeqAllocator.allocate(chatId, id).seq();
+        ObjectId id = new ObjectId();
+        long seq = messageSeqAllocator.allocate(chatId, id.toHexString()).seq();
 
         NoticeData noticeData = new NoticeData().setChatId(chatId).setData(data);
         GroupMessageInfo message = (GroupMessageInfo) new GroupMessageInfo().setId(id)
                 .setSeq((int) seq)
                 .setType(MessageType.NOTICE_MESSAGE.getType())
                 .setChatId(chatId)
-                .setSndId(sndId)
-                .setRcvId(chatId)
+                .setSndId(new ObjectId(sndId))
+                .setRcvId(null)
                 .setState(0)
-                .setData(noticeData)
+                .setData(new Gson().toJson(noticeData))
                 .setTimestamp(now());
         this.getMongoTemplate().insert(message);
 

@@ -1,5 +1,6 @@
 package com.link.restapi.module.redpack.service;
 
+import com.google.gson.Gson;
 import com.link.common.core.event.EventType;
 import com.link.common.core.model.redpack.LinkRedPacketUpdate;
 import com.link.common.redis.RedisKeys;
@@ -12,7 +13,7 @@ import com.link.im.entity.chat.ChatSession;
 import com.link.im.entity.chat.ChatSessionMember;
 import com.link.im.entity.data.RedPackData;
 import com.link.im.entity.data.system.SystemGrabRedPacketData;
-import com.link.im.entity.message.AbstractMessage;
+import com.link.im.entity.base.BaseMessage;
 import com.link.im.entity.message.DefaultMessageInfo;
 import com.link.im.entity.message.GroupMessageInfo;
 import com.link.im.entity.message.type.MessageType;
@@ -27,12 +28,10 @@ import com.link.im.enums.redpack.RedPacketApiCode;
 import com.link.im.mongo.BasePlatFormMongoService;
 import com.link.im.service.LinkRedisService;
 import com.link.im.util.ApiResult;
-import com.link.im.util.MD5Util;
 import com.link.restapi.module.redpack.exception.RedPackBizException;
 import com.link.restapi.module.redpack.model.dto.LinkGetRedPacketDTO;
 import com.link.restapi.module.redpack.model.dto.LinkGrabPacketDto;
 import com.link.restapi.module.redpack.model.dto.LinkSendPacketDto;
-import com.link.restapi.module.redpack.model.vo.LinkGrabRedPacketVO;
 import com.link.restapi.module.redpack.model.vo.LinkRedPacketRecordVO;
 import com.link.restapi.module.redpack.model.vo.LinkRedPacketVO;
 import com.link.restapi.push.RemotePushPublisher;
@@ -49,7 +48,6 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
@@ -104,7 +102,7 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
     private static final long IDEMPOTENT_TTL_HOURS = 24L;
 
     /** 红包有效期：24 小时未抢完由定时任务退回剩余金额 */
-    private static final long PACKET_EXPIRE_MILLIS = 24L * 60 * 60 * 1000; //
+    private static final long PACKET_EXPIRE_MILLIS = 10 * 1000; //  24L * 60 * 60 * 1000
 
     /**
      * Redis 预扣队列的 TTL，比红包有效期多留 1 小时。
@@ -160,12 +158,12 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
     private RedPackService self;
 
     /** 发红包事务的产物，带回事务外用于 commit 后填库存和推消息 */
-    private record SendOutcome(RedPacket packet, AbstractMessage message) {
+    private record SendOutcome(RedPacket packet, BaseMessage message) {
     }
 
     /** 抢红包事务的产物，带回事务外用于 commit 后推送 */
     private record GrabOutcome(int remainCount, BigDecimal remainAmount, int packetStatus,
-                               String packetMessageId, AbstractMessage sysMessage) {
+                               String packetMessageId, BaseMessage sysMessage) {
     }
 
 
@@ -212,7 +210,7 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
             // 消息 id 直接用前端传的 bizDetailId，不再后端现造：
             //   1) 与普通消息一致 —— LinkDefaultMessageEventHandler 用的就是客户端传的 message.getId()
             //   2) 客户端超时重发时，allocate 认出是同一个 id，返回原来那个 seq 而不是再烧一个号段
-            String messageId = dto.getBizDetailId();
+            String messageId = new ObjectId().toHexString();
             long seq = this.messageSeqAllocator.allocate(dto.getChatId(), messageId).seq();
 
             SendOutcome outcome = self.doSend(dto, packetId, rcvId, messageId, seq, now);
@@ -272,9 +270,9 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
                 WalletInOutKeys.OUT, packetId, "发红包", now));
 
         // ④ 会话里的红包气泡
-        AbstractMessage message = buildRedPacketMessage(dto, packetId, rcvId, messageId, seq, now);
+        BaseMessage message = buildRedPacketMessage(dto, packetId, rcvId, messageId, seq, now);
         this.getMongoTemplate().insert(message);
-        touchChatSession(dto.getChatId(), message, MessageType.summaryOf(message.getType(), message.getData()), now);
+        touchChatSession(dto.getChatId(), message, MessageType.summaryOf(message.getType(), message.getBaseData()), now);
 
         return new SendOutcome(packet, message);
     }
@@ -330,8 +328,8 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
         RedPacket packet = new RedPacket()
                 .setBizDetailId(dto.getBizDetailId())
                 .setMessageId(messageId)
-                .setSndId(dto.getSndId())
-                .setRcvId(rcvId)
+                .setSndId(new ObjectId(dto.getSndId()))
+                .setRcvId(new ObjectId(dto.getRcvId()))
                 .setChatId(dto.getChatId())
                 .setBizType(dto.getType())
                 .setTotalAmount(dto.getAmount())
@@ -346,31 +344,32 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
         return packet;
     }
 
-    private AbstractMessage buildRedPacketMessage(LinkSendPacketDto dto, String packetId, String rcvId,
-                                                  String messageId, long seq, long now) {
-        // 剩余份数 / 剩余金额不进消息体：它们随每次抢变，端上按 id 实时查，避免消息里存过期数据
+    private BaseMessage buildRedPacketMessage(LinkSendPacketDto dto, String packetId, String rcvId,
+                                              String messageId, long seq, long now) {
+        // 消息的 data 只存创建时的静态快照，不含 status 和 claimantIds
         RedPackData data = new RedPackData()
                 .setId(packetId)
                 .setAmount(dto.getAmount())
-                .setStatus(RedPacketStatusKeys.IN_PROGRESS)
                 .setBlessing(dto.getBlessing())
-                .setTotalCount(dto.getCount())
-                .setClaimantIds(new ArrayList<>());
+                .setTotalCount(dto.getCount());
 
-        AbstractMessage message = dto.getType() == PACKET_TYPE_LUCKY
+        BaseMessage message = dto.getType() == PACKET_TYPE_LUCKY
                 ? new GroupMessageInfo() : new DefaultMessageInfo();
         // insert 按运行时类型选集合：GroupMessageInfo -> group_message_queue，DefaultMessageInfo -> default_message_queue
-        return message.setId(messageId)
+        return message.setId(new ObjectId(messageId))
                 .setSeq((int) seq)
                 .setType(MessageType.RED_PACK_MESSAGE.getType())
                 .setChatId(dto.getChatId())
-                .setSndId(dto.getSndId())
-                .setRcvId(rcvId)
+                .setSndId(new ObjectId(dto.getSndId()))
+                .setRcvId(new ObjectId(dto.getRcvId()))
+
                 .setState(1)
                 // 红包不可引用（MessageType.RED_PACK_MESSAGE.quotable = false）
                 .setQuote(null)
-                .setData(data)
+                .setData(new Gson().toJson(data))
+                .setBaseData(data)
                 .setTimestamp(now);
+
     }
 
     /** 把拆好的每一份塞进 Redis 预扣队列。必须在 commit 之后调，否则事务回滚了库存已经放出去 */
@@ -380,7 +379,8 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
         redisTemplate.expire(key, INVENTORY_TTL_HOURS, TimeUnit.HOURS);
     }
 
-    private void pushRedPacketMessage(LinkSendPacketDto dto, AbstractMessage message) {
+    private void pushRedPacketMessage(LinkSendPacketDto dto, BaseMessage message) {
+
         if (dto.getType() == PACKET_TYPE_LUCKY) {
             Set<String> memberIds = this.redisService.getChatMemberIds(dto.getChatId());
             if (CollectionUtils.isEmpty(memberIds))
@@ -388,7 +388,7 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
             this.pushPublisher.push(EventType.GROUP_MESSAGE, memberIds, message);
         } else {
             this.pushPublisher.push(EventType.DEFAULT_MESSAGE,
-                    Arrays.asList(dto.getSndId(), message.getRcvId()), message);
+                    Arrays.asList(dto.getSndId(), message.getRcvId().toHexString()), message);
         }
     }
 
@@ -398,7 +398,7 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
      * <p>summary 显式传进来而不是内部算：系统消息（{@code MessageType.SYSTEM_MESSAGE}）的
      * summaryLabel 是 null，直接用 {@code summaryOf} 会把会话列表的预览刷成空白。
      */
-    private void touchChatSession(String chatId, AbstractMessage message, String summary, long now) {
+    private void touchChatSession(String chatId, BaseMessage message, String summary, long now) {
         this.getMongoTemplate().updateFirst(
                 eq(where(col(ChatSession::getChatId)).is(chatId)),
                 update().set(col(ChatSession::getLastMsgSeq), message.getSeq())
@@ -467,7 +467,7 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
             // 单聊才落「XX 领取了你的红包」系统消息；群聊 500 人抢 100 份会刷屏 100 条，只推增量事件。
             // seq 同样得在事务外分配 —— 它在 Redis，回滚不了
             boolean single = packet.getBizType() == PACKET_TYPE_SINGLE;
-            String sysMessageId = single ? LinkID.nextIdStr() : null;
+            String sysMessageId = new ObjectId().toHexString();
             long sysSeq = single ? this.messageSeqAllocator.allocate(packet.getChatId(), sysMessageId).seq() : 0L;
 
             GrabOutcome outcome;
@@ -531,7 +531,7 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
     /** 单聊红包是点对点的，只有收方能领（发的人自己也不行）；群红包校验是不是群成员 */
     private boolean isChatMember(RedPacket packet, String userId) {
         if (packet.getBizType() == PACKET_TYPE_SINGLE)
-            return userId.equals(packet.getRcvId());
+            return userId.equals(packet.getRcvId().toHexString());
         Set<String> memberIds = this.redisService.getChatMemberIds(packet.getChatId());
         return memberIds != null && memberIds.contains(userId);
     }
@@ -588,7 +588,7 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
         ObjectId packetId = packet.getId();
         ObjectId userId = new ObjectId(dto.getUserId());
 
-        // ① 扣库存。不再对 children 做 elemMatch —— children 只是审计快照，
+        // ① 扣库存，同时更新领取人列表。不再对 children 做 elemMatch —— children 只是审计快照，
         //    「谁抢走了哪一份」记在 RedPacketRecord 里，几百份的红包不必每次都定位子文档
         Query cas = eq(where(col(RedPacket::getId)).is(packetId)
                 .and(col(RedPacket::getStatus)).is(RedPacketStatusKeys.IN_PROGRESS)
@@ -596,7 +596,8 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
                 .and(col(RedPacket::getRemainAmount)).gte(item.getAmount()));
         Update deduct = update()
                 .inc(col(RedPacket::getRemainCount), -1)
-                .inc(col(RedPacket::getRemainAmount), item.getAmount().negate());
+                .inc(col(RedPacket::getRemainAmount), item.getAmount().negate())
+                .addToSet(col(RedPacket::getClaimantIds), userId);  // 添加领取人到红包表
         RedPacket after = this.findAndModify(cas, deduct, options().returnNew(true).upsert(false));
         if (after == null)
             throw new RedPackBizException(ApiResult.error(RedPacketApiCode.RED_PACKET_SOLD_OUT));
@@ -632,20 +633,12 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
                             .and(col(RedPacket::getStatus)).is(RedPacketStatusKeys.IN_PROGRESS)),
                     update().set(col(RedPacket::getStatus), RedPacketStatusKeys.SOLD_OUT));
 
-        // ⑥ 红包气泡：领取人入列 +（抢完时）置灰，合并成一次 update。
-        //    目标消息优先用红包自己记的 messageId —— dto 里那个是客户端传的，可以伪造成别人的消息 id，
-        //    照着写等于允许任何人往别人的消息里塞 claimant_ids
+        // ⑥ 消息不再更新：status 和 claimantIds 已从消息的 data 中移除
+        //    前端通过 UPDATE_RED_PACKET 事件实时同步状态，离线场景调用详情接口查询
         String targetMessageId = packet.getMessageId() != null ? packet.getMessageId() : dto.getMessageId();
-        if (targetMessageId != null) {
-            Update bubble = update().addToSet("data.claimant_ids", dto.getUserId());
-            if (soldOut)
-                bubble.set("data.status", RedPacketStatusKeys.SOLD_OUT);
-            this.getMongoTemplate().updateFirst(
-                    eq(where(col(AbstractMessage::getId)).is(targetMessageId)), bubble, messageClass(packet));
-        }
 
         // ⑦ 单聊的系统消息
-        AbstractMessage sysMessage = null;
+        BaseMessage sysMessage = null;
         if (sysMessageId != null) {
             sysMessage = buildGrabSystemMessage(packet, dto, targetMessageId, sysMessageId, sysSeq, now);
             this.getMongoTemplate().insert(sysMessage);
@@ -657,32 +650,35 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
                 targetMessageId, sysMessage);
     }
 
-    private AbstractMessage buildGrabSystemMessage(RedPacket packet, LinkGrabPacketDto dto, String packetMessageId,
-                                                   String messageId, long seq, long now) {
+    private BaseMessage buildGrabSystemMessage(RedPacket packet, LinkGrabPacketDto dto, String packetMessageId,
+                                               String messageId, long seq, long now) {
+        System.out.println("messageId:" + messageId);
+        System.out.println(new ObjectId(messageId));
         SystemGrabRedPacketData data = new SystemGrabRedPacketData()
-                .setSndId(packet.getSndId())
+                .setSndId(packet.getSndId().toHexString())
                 .setClaimantId(dto.getUserId())
                 .setPacketMessageId(packetMessageId);
         return new DefaultMessageInfo()
-                .setId(messageId)
+                .setId(new ObjectId(messageId))
                 .setSeq((int) seq)
                 .setType(MessageType.SYSTEM_MESSAGE.getType())
                 .setChatId(packet.getChatId())
                 .setSndId(packet.getSndId())
                 .setRcvId(packet.getRcvId())
                 .setState(1)
-                .setData(data)
+                .setBaseData(data)
+                .setData(new Gson().toJson(data))
                 .setQuote(null)
                 .setTimestamp(now);
     }
 
-    public Class<? extends AbstractMessage> messageClass(RedPacket packet) {
+    public Class<? extends BaseMessage> messageClass(RedPacket packet) {
         return packet.getBizType() == PACKET_TYPE_SINGLE ? DefaultMessageInfo.class : GroupMessageInfo.class;
     }
 
     public Collection<String> pushTargets(RedPacket packet) {
         if (packet.getBizType() == PACKET_TYPE_SINGLE)
-            return Arrays.asList(packet.getSndId(), packet.getRcvId());
+            return Arrays.asList(packet.getSndId().toHexString(), packet.getRcvId().toHexString());
         return this.redisService.getChatMemberIds(packet.getChatId());
     }
 
@@ -723,6 +719,7 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
 
         LinkRedPacketVO vo = new LinkRedPacketVO()
                 .setId(dto.getPacketId())
+                .setStatus(packet.getStatus())
                 .setTotalAmount(packet.getTotalAmount())
                 .setRemainAmount(packet.getRemainAmount())
                 .setTotalCount(packet.getTotalCount())
@@ -760,7 +757,7 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
     /** 单聊红包只有收发双方能看详情；群红包按会话成员放行 */
     private boolean canView(RedPacket packet, String userId) {
         if (packet.getBizType() == PACKET_TYPE_SINGLE)
-            return userId.equals(packet.getSndId()) || userId.equals(packet.getRcvId());
+            return userId.equals(packet.getSndId().toHexString()) || userId.equals(packet.getRcvId().toHexString());
         Set<String> memberIds = this.redisService.getChatMemberIds(packet.getChatId());
         return memberIds != null && memberIds.contains(userId);
     }

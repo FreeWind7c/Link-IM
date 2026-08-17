@@ -24,6 +24,8 @@ public class LinkRedPacketVO {
 
     private int remainCount;
 
+    private int status;
+
     private List<LinkRedPacketRecordVO>  records;
 
 

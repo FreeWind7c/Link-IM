@@ -1,9 +1,11 @@
 package com.link.im.processor.message;
 
+import com.google.gson.Gson;
 import com.link.core.config.LinkCoreConfig;
 import com.link.common.core.event.EventType;
 import com.link.core.session.service.LinkSession;
-import com.link.im.entity.message.AbstractMessage;
+import com.link.im.dto.message.DefaultMessageDTO;
+import com.link.im.entity.base.BaseMessage;
 import com.link.im.entity.message.DefaultMessageInfo;
 import com.link.im.processor.LinkMessageProcessor;
 import com.link.util.delivery.MessageRetryManager;
@@ -44,14 +46,14 @@ public class LinkDefaultMessageProcessor implements LinkMessageProcessor {
 
 
     @Override
-    public void processor(AbstractMessage abstractMessage, Channel channel) {
-        DefaultMessageInfo message = (DefaultMessageInfo) abstractMessage;
-        forwardSend(message);
+    public void processor(BaseMessage message, Channel channel) {
+        DefaultMessageInfo info = (DefaultMessageInfo) message;
+        forwardSend(info);
     }
 
     private void forwardSend(DefaultMessageInfo message) {
 
-        String rcvId = message.getRcvId();
+        String rcvId = message.getRcvId().toHexString();
         List<LinkSession> sessions = this.config.getSessionManager().getSession(rcvId);
 
         // B 完全离线：不推送，消息保持 undelivered，等 B 上线同步时再补送。
@@ -81,19 +83,19 @@ public class LinkDefaultMessageProcessor implements LinkMessageProcessor {
         this.config.getLinkSender().send(EventType.DEFAULT_MESSAGE, target, message);
 
         long delay = BASE_DELAY_MS * (1L << (attempt - 1));   // 3s, 6s, 12s, 24s...
-        this.retryManager.schedule(message.getId(), target, delay, timeout -> {
+        this.retryManager.schedule(message.getId().toHexString(), target, delay, timeout -> {
             // 跑到这里说明超时仍未收到 B 的 ACK（收到的话该任务早被 cancel 了）
 
             // 对端已掉线：停止在线重发，交给上线同步。
             if (!target.isActive()) {
-                this.retryManager.remove(message.getId(), target);
+                this.retryManager.remove(message.getId().toHexString(), target);
                 log.info("接收端 {} 已掉线，停止重发消息 {}", target.id(), message.getId());
                 return;
             }
 
             // 达到上限：放弃在线重发，消息仍是 undelivered，靠 B 上线同步兜底。
             if (attempt >= MAX_ATTEMPTS) {
-                this.retryManager.remove(message.getId(), target);
+                this.retryManager.remove(message.getId().toHexString(), target);
                 log.warn("消息 {} 重发达上限 {} 次仍未确认，转上线同步兜底", message.getId(), MAX_ATTEMPTS);
                 return;
             }

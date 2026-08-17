@@ -30,4 +30,5 @@ public class RedisKeys {
     public static final String RED_PACKET_SEND_IDEM = "red_packet:send:idem:";
 
     public static final String USER_TOKEN = "user_token:";
+    public static final String BOOT_MESSAGE = "boot_message:";
 }

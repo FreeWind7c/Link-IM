@@ -5,6 +5,7 @@ import com.link.common.core.event.RTCEventType;
 import com.link.common.core.model.call.LinkRtcCall;
 import com.link.core.config.LinkCoreConfig;
 import com.link.core.event.handler.RTCEventHandler;
+import com.link.im.entity.data.CallData;
 import com.link.im.entity.message.DefaultMessageInfo;
 import com.link.im.mongo.BasePlatFormMongoService;
 import io.netty.channel.Channel;
@@ -32,16 +33,20 @@ public class LinkRtcAcceptEventHandler extends BasePlatFormMongoService<DefaultM
 
     @Override
     public void handler(LinkRtcCall call,Channel channel) {
-
         List<Channel> channels = this.config.getSessionManager().getChannel(call.getRcvId());
         if (channels == null || channels.isEmpty())
             return;
+
+        CallData data = new CallData().setMediaType(call.getMediaType())
+                .setStatus(1)
+                .setStartTime((int) now())
+                .setEndTime(0L)
+                .setGroupCall(false);
         Query eq = eq(
                 where(col(DefaultMessageInfo::getId)).is(call.getMessageId())
         );
         Update update = update()
-                .set("data.status", 1)
-                .set("data.end_time",now());
+                .set("data", data.toJson());
         this.updateFirst(eq,update);
         this.config.getLinkSender().send(EventType.RTC_CALL,channels,call);
     }

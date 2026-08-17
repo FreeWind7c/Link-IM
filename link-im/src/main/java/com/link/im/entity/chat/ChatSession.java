@@ -53,6 +53,9 @@ public class ChatSession extends BaseEntity {
     @Indexed
     private int type;
 
+    // 0用户 1系统 2官方 3机器人
+    private int category;
+
     @Field("last_msg_type")
     private int lastMsgType;
 
@@ -73,7 +76,14 @@ public class ChatSession extends BaseEntity {
      */
     public ChatSession createSingle(String chatId) {
         return this.setChatId(chatId)
-                .setType(TYPE_SINGLE);
+                .setType(TYPE_SINGLE)
+                .setCategory(0);
+    }
+
+    public ChatSession createSingle(String chatId,int category) {
+        return this.setChatId(chatId)
+                .setType(TYPE_SINGLE)
+                .setCategory(category);
     }
 
     /**

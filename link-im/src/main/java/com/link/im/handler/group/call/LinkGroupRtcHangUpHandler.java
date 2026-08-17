@@ -33,6 +33,7 @@ public class LinkGroupRtcHangUpHandler extends BaseGroupCallHandler implements G
 
     @Override
     public void handler(LinkRtcGroupCall call, Channel channel) {
+        print("通话结束",call);
         boolean changed = advanceParticipant(call, CallParticipant.LEFT);
         if (changed) {
             log.info("群通话挂断 -> messageId={} user={} 客户端计时={}s",

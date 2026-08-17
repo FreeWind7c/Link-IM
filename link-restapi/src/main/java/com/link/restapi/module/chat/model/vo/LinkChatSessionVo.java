@@ -26,6 +26,8 @@ public class LinkChatSessionVo {
 
     private String ownerId;
 
+    private int category;
+
     private String targetId;
 
     private int unreadCount;
@@ -57,6 +59,7 @@ public class LinkChatSessionVo {
         return this.setChatId(session.getChatId())
                 .setType(session.getType())
                 .setTitle(user.getNickname())
+                .setCategory(session.getCategory())
                 .setAvatar(user.getAvatar())
                 .setActive(member.isActive())
                 .setLastMsgType(session.getLastMsgType())

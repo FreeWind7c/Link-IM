@@ -51,44 +51,44 @@ public class GroupCallTimeoutCompensator extends BasePlatFormMongoService<GroupM
      */
     @Scheduled(fixedDelay = 30 * 60 * 1000L, initialDelay = 5 * 60 * 1000L)
     public void compensate() {
-        long deadline = now() - MAX_CALL_DURATION_MS;
-
-        Query q = eq(where(col(DefaultMessageInfo::getType)).is(MessageType.RTC_CALL_MESSAGE.getType())
-                .and("data.group_call").is(true)
-                .and("data.status").in(CallData.GROUP_CALLING, CallData.GROUP_CONNECTED)
-                .and(col(DefaultMessageInfo::getTimestamp)).lt(deadline));
-        q.limit(BATCH_LIMIT);
-
-        List<GroupMessageInfo> stale = this.find(q);
-        if (stale.isEmpty()) return;
-
-        log.warn("发现 {} 条超时未结算的群通话记录，开始补偿", stale.size());
-
-        for (GroupMessageInfo message : stale) {
-            if (!(message.getData() instanceof CallData data)) continue;
-
-            boolean anyJoined = data.getParticipants() != null
-                    && data.getParticipants().stream().anyMatch(p -> p.getJoinTime() > 0);
-            int finalStatus = anyJoined ? CallData.GROUP_FINISHED : CallData.GROUP_NOT_CONNECTED;
-
-            // 条件更新：期间若有正常上报把它结算了，这里就不再覆盖
-            Query one = eq(where(col(DefaultMessageInfo::getId)).is(message.getId()));
-            one.addCriteria(Criteria.where("data.status")
-                    .in(CallData.GROUP_CALLING, CallData.GROUP_CONNECTED));
-
-            Update update = update()
-                    .set("data.status", finalStatus)
-                    .set("data.end_time", now());
-            // 把仍挂在非终态的参与者一并收尾，避免名单里留下永远「通话中」的人
-            update.filterArray(Criteria.where("elem.status")
-                    .in(CallParticipant.INVITED, CallParticipant.JOINED));
-            update.set("data.participants.$[elem].status", CallParticipant.LEFT);
-            update.set("data.participants.$[elem].leave_time", now());
-
-            long modified = this.updateFirst(one, update);
-            if (modified > 0) {
-                log.warn("群通话超时补偿 -> messageId={} status={}", message.getId(), finalStatus);
-            }
-        }
+//        long deadline = now() - MAX_CALL_DURATION_MS;
+//
+//        Query q = eq(where(col(DefaultMessageInfo::getType)).is(MessageType.RTC_CALL_MESSAGE.getType())
+//                .and("data.group_call").is(true)
+//                .and("data.status").in(CallData.GROUP_CALLING, CallData.GROUP_CONNECTED)
+//                .and(col(DefaultMessageInfo::getTimestamp)).lt(deadline));
+//        q.limit(BATCH_LIMIT);
+//
+//        List<GroupMessageInfo> stale = this.find(q);
+//        if (stale.isEmpty()) return;
+//
+//        log.warn("发现 {} 条超时未结算的群通话记录，开始补偿", stale.size());
+//
+//        for (GroupMessageInfo message : stale) {
+//            if (!(message.getData() instanceof CallData data)) continue;
+//
+//            boolean anyJoined = data.getParticipants() != null
+//                    && data.getParticipants().stream().anyMatch(p -> p.getJoinTime() > 0);
+//            int finalStatus = anyJoined ? CallData.GROUP_FINISHED : CallData.GROUP_NOT_CONNECTED;
+//
+//            // 条件更新：期间若有正常上报把它结算了，这里就不再覆盖
+//            Query one = eq(where(col(DefaultMessageInfo::getId)).is(message.getId()));
+//            one.addCriteria(Criteria.where("data.status")
+//                    .in(CallData.GROUP_CALLING, CallData.GROUP_CONNECTED));
+//
+//            Update update = update()
+//                    .set("data.status", finalStatus)
+//                    .set("data.end_time", now());
+//            // 把仍挂在非终态的参与者一并收尾，避免名单里留下永远「通话中」的人
+//            update.filterArray(Criteria.where("elem.status")
+//                    .in(CallParticipant.INVITED, CallParticipant.JOINED));
+//            update.set("data.participants.$[elem].status", CallParticipant.LEFT);
+//            update.set("data.participants.$[elem].leave_time", now());
+//
+//            long modified = this.updateFirst(one, update);
+//            if (modified > 0) {
+//                log.warn("群通话超时补偿 -> messageId={} status={}", message.getId(), finalStatus);
+//            }
+//        }
     }
 }

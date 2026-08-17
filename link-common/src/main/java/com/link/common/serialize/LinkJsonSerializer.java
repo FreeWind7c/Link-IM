@@ -25,9 +25,22 @@ public class LinkJsonSerializer implements LinkSerializer {
      *                              避免 common 反向依赖上层模型。
      */
     public LinkJsonSerializer(Map<Class<?>, Object> typeHierarchyAdapters) {
+        this(typeHierarchyAdapters, null);
+    }
+
+    /**
+     * @param typeHierarchyAdapters 同上，对目标类及其所有子类生效
+     * @param typeAdapters          精确匹配的适配器（目标类 -> 适配器实例），只对该类本身生效，
+     *                              可为 null。适用于没有继承体系、也不希望波及其他类型的场景。
+     */
+    public LinkJsonSerializer(Map<Class<?>, Object> typeHierarchyAdapters,
+                              Map<Class<?>, Object> typeAdapters) {
         GsonBuilder builder = new GsonBuilder();
         if (typeHierarchyAdapters != null) {
             typeHierarchyAdapters.forEach(builder::registerTypeHierarchyAdapter);
+        }
+        if (typeAdapters != null) {
+            typeAdapters.forEach(builder::registerTypeAdapter);
         }
         this.gson = builder.create();
     }

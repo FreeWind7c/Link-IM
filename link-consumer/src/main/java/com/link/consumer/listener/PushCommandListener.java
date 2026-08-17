@@ -1,6 +1,7 @@
 package com.link.consumer.listener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 import com.link.common.core.event.EventType;
 import com.link.common.core.mq.DirectPushCommand;
 import com.link.common.core.mq.PushMqConst;
@@ -60,7 +61,9 @@ public class PushCommandListener {
         try {
             // 按发布端写入的全限定类名还原具体 payload 类型（LinkFriend / LinkApproveFriend …）
             Class<?> payloadClass = Class.forName(cmd.getPayloadType());
+
             payload = objectMapper.readValue(cmd.getPayloadJson(), payloadClass);
+            log.info("payload: " + new Gson().toJson(payload));
         } catch (Exception e) {
             // payload 还原失败属脏数据，记日志丢弃即可——重试也不会变好，不要重回队列打转
             log.error("还原 DirectPushCommand payload 失败，丢弃。type={}, userId={}",

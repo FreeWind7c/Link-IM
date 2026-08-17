@@ -9,6 +9,7 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import com.link.im.entity.base.BaseBotData;
 import org.bson.types.ObjectId;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.SerializationException;
@@ -49,6 +50,9 @@ public class GsonRedisSerializer implements RedisSerializer<Object> {
 
     private static final Gson GSON = new GsonBuilder()
             .registerTypeAdapter(ObjectId.class, new ObjectIdTypeAdapter().nullSafe())
+            // AIBotMessageDTO.data 声明成父类 BaseBotData，不挂适配器读回来就是个空壳，
+            // question / answer 全丢。与网络侧 LinkImSerializeConfig 用同一套判定。
+            .registerTypeHierarchyAdapter(BaseBotData.class, new BaseBotDataDeserializer())
             .create();
 
     @Override

@@ -2,6 +2,7 @@ package com.link.core.event.dispatcher;
 
 import com.link.common.channel.DefaultChannelAttributeKeys;
 import com.link.common.core.event.EventType;
+import com.link.common.core.model.ack.LinkAck;
 import com.link.core.config.LinkCoreConfig;
 import com.link.core.event.facotry.EventHandlerFactory;
 import com.link.core.event.handler.EventHandler;
@@ -54,6 +55,7 @@ public class LinkEventDispatcher {
         // ByteBuf → byte[]：序列化器只认字节数组（已与 netty 解耦），这里在接入层完成读取
         byte[] body = new byte[buf.readableBytes()];
         buf.readBytes(body);
+        String jsonStr = new String(body, java.nio.charset.StandardCharsets.UTF_8);
         Object data = this.config.getLinkSerializer().deserialize(body, eventHandler.bodyClass());
         String partitionKey = eventHandler.partitionKey(data);
         if (partitionKey != null) {

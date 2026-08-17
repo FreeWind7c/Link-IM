@@ -5,6 +5,10 @@ import com.link.common.core.event.EventType;
 import com.link.common.core.mq.FanoutPushCommand;
 import com.link.common.core.mq.DirectPushCommand;
 import com.link.common.core.mq.PushMqConst;
+import com.link.im.constants.publisher.PublisherRouterKeys;
+import com.link.im.entity.base.BaseMessage;
+import com.link.im.entity.message.DefaultMessageInfo;
+import com.link.im.entity.message.GroupMessageInfo;
 import com.link.im.entity.wallet.*;
 import com.link.restapi.module.wallet.service.WalletInfoService;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +38,8 @@ public class RemotePushPublisher {
     @Autowired
     private RabbitTemplate rabbitTemplate;
 
-    private ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private MongoTemplate mongoTemplate;
@@ -52,6 +57,10 @@ public class RemotePushPublisher {
         walletInfoService.walletWithdraw(walletWithdraw);
     }
 
+    public void push(String exchangeName,String routeKey,Object obj){
+        rabbitTemplate.convertAndSend(exchangeName,routeKey,obj);
+    }
+
     /**
      * 批量发布在线推送指令（如群消息需推给多名成员）。payload 只序列化一次，逐个用户复用。
      *
@@ -66,6 +75,7 @@ public class RemotePushPublisher {
         try {
             String payloadType = payload.getClass().getName();
             String payloadJson = objectMapper.writeValueAsString(payload);
+            log.info("payloadJson:" + payloadJson);
             FanoutPushCommand cmd = new FanoutPushCommand()
                     .setUserId( userIds)
                     .setEventType(eventType.getAction())
@@ -76,6 +86,19 @@ public class RemotePushPublisher {
         } catch (Exception e) {
             // 推送是「尽力而为」的在线态：发布失败不应阻断主业务，记日志即可
             log.error("批量发布推送指令失败 userIds={}, eventType={}", userIds, eventType, e);
+        }
+    }
+
+    public void pushMessageStorage(BaseMessage baseMessage, int type) {
+        if (type== 1)
+        {
+            DefaultMessageInfo message = (DefaultMessageInfo) baseMessage ;
+            push(PublisherRouterKeys.MESSAGE_EXCHANGE,PublisherRouterKeys.DEFAULT_MESSAGE_STORAGE_ROUTING_KEY,message);
+        }
+        else
+        {
+            GroupMessageInfo message = (GroupMessageInfo) baseMessage;
+            push(PublisherRouterKeys.MESSAGE_EXCHANGE,PublisherRouterKeys.GROUP_MESSAGE_STORAGE_ROUTING_KEY,message);
         }
     }
 }

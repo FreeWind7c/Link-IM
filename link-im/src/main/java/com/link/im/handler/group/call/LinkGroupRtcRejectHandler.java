@@ -1,5 +1,6 @@
 package com.link.im.handler.group.call;
 
+import com.google.gson.Gson;
 import com.link.common.core.event.GroupRTCEventType;
 import com.link.common.core.model.call.LinkRtcGroupCall;
 import com.link.core.event.handler.GroupRTCEventHandler;
@@ -28,6 +29,7 @@ public class LinkGroupRtcRejectHandler extends BaseGroupCallHandler implements G
 
     @Override
     public void handler(LinkRtcGroupCall call, Channel channel) {
+        log.info("被动取消：" + new Gson().toJson(call));
         boolean changed = advanceParticipant(call, CallParticipant.REJECTED);
         if (changed) {
             log.info("群通话拒接 -> messageId={} user={}", call.getMessageId(), call.getTargetId());

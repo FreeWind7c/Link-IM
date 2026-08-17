@@ -1,8 +1,9 @@
-package com.link.im.entity.message;
+package com.link.im.entity.message.quote;
 
 import com.link.im.entity.base.BaseData;
 import com.link.im.entity.data.ImageData;
 import com.link.im.entity.data.VideoData;
+import com.link.im.entity.base.BaseMessage;
 import com.link.im.entity.message.type.MessageType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -10,7 +11,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 /**
- * 引用消息快照。挂在 {@link AbstractMessage#getQuote()} 上，为 null 表示非引用消息。
+ * 引用消息快照。挂在 {@link BaseMessage#getQuote()} 上，为 null 表示非引用消息。
  *
  * <p>为什么存快照而不是只存 msgId：
  * <ul>
@@ -54,16 +55,16 @@ public class QuoteRef {
     /**
      * 由回查到的原消息构建快照。调用前须确保 source 类型 {@link MessageType#isQuotable} 为 true。
      */
-    public static QuoteRef of(AbstractMessage source) {
+    public static QuoteRef of(BaseMessage source, BaseData data) {
         QuoteRef ref = new QuoteRef();
-        ref.setMsgId(source.getId());
+        ref.setMsgId(source.getId().toHexString());
         ref.setSeq(source.getSeq());
         ref.setChatId(source.getChatId());
-        ref.setSndId(source.getSndId());
+        ref.setSndId(source.getSndId().toHexString());
         ref.setType(source.getType());
-        ref.setSummary(MessageType.summaryOf(source.getType(), source.getData()));
+        ref.setSummary(MessageType.summaryOf(source.getType(), data));
 
-        BaseData data = source.getData();
+
         if (data instanceof ImageData img) {
             ref.setThumbUrl(img.getUrl());
         } else if (data instanceof VideoData video) {

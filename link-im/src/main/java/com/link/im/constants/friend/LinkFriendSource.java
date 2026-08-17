@@ -14,4 +14,6 @@ public class LinkFriendSource {
     public static final int QR_CODE = 3;
 
     public static final int GROUP = 4;
+
+    public static final int SYS = 5;
 }

@@ -1,6 +1,7 @@
 package com.link.im.handler.base;
 
 import com.google.gson.Gson;
+import com.link.common.core.event.EventType;
 import lombok.extern.slf4j.Slf4j;
 
 /**

@@ -24,7 +24,6 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
@@ -68,7 +67,7 @@ public class RedPacketCronService {
     /**
      * 扫过期红包，把没抢完的剩余金额原路退回发送者。
      */
-    @Scheduled(fixedRate = 5 * 60 * 1000)
+    @Scheduled(fixedRate = 10 * 1000)
     public void verifyRedPacket() {
         long now = System.currentTimeMillis();
         // 用属性名而不是库内字段名：RedPacket 的 expireTime/remainCount 上有 @Field 映射，
@@ -84,9 +83,9 @@ public class RedPacketCronService {
                 RedPacket before = self.doExpire(packet, now);
                 if (before == null)
                     continue; // 没抢到翻转权（上一轮或另一个实例已处理），绝不重复退款
-
                 // ---------- 事务外后置：commit 之后再动 Redis 和 MQ ----------
                 this.redisTemplate.delete(RedisKeys.RED_PACKET + before.getId().toHexString());
+                log.info("红包：{},已退款:{}",before.getId().toHexString(),before.getRemainAmount());
                 pushExpired(before);
             } catch (Exception e) {
                 // 单个红包失败不能带崩整轮，下一轮还会再扫到它（status 仍是 0）
@@ -96,7 +95,10 @@ public class RedPacketCronService {
     }
 
     /**
-     * 单个过期红包的退款事务：翻转状态、退钱、记流水、把气泡置灰，一起成或一起废。
+     * 单个过期红包的退款事务：翻转状态、退钱、记流水，一起成或一起废。
+     *
+     * <p>不再更新消息的 data 字段：status 和 claimantIds 已从消息中移除，
+     * 前端通过 UPDATE_RED_PACKET 事件实时同步状态。
      *
      * @return 翻转<b>之前</b>的红包文档；返回 null 表示没抢到翻转权，本次什么都没做
      */
@@ -114,7 +116,7 @@ public class RedPacketCronService {
         if (remain != null && remain.signum() > 0) {
             // ② 退款。sndId 库里是 ObjectId，这里必须显式 new ObjectId(...)：
             //    原来传的是 String，条件永远不命中，updateFirst 静默返回 0，退款一直是失效的
-            ObjectId sndId = new ObjectId(before.getSndId());
+            ObjectId sndId = before.getSndId();
             UpdateResult refund = this.mongoTemplate.updateFirst(
                     new Query(Criteria.where("user_id").is(sndId)),
                     new Update().inc("balance", remain), WalletInfo.class);
@@ -137,14 +139,7 @@ public class RedPacketCronService {
             this.mongoTemplate.insert(flow);
         }
 
-        // ⑤ 把会话里的红包气泡置灰。定时任务没有客户端可以采信，
-        //    只能靠红包自己记的 messageId 定位这条消息（RedPacket.messageId 就是为此而加）
-        if (before.getMessageId() != null) {
-            this.mongoTemplate.updateFirst(
-                    new Query(Criteria.where("_id").is(before.getMessageId())),
-                    new Update().set("data.status", RedPacketStatusKeys.REFUND),
-                    redPackService.messageClass(before));
-        }
+        // ⑤ 消息不再更新：前端通过 UPDATE_RED_PACKET 事件同步红包状态
 
         return before;
     }

@@ -15,7 +15,7 @@
     <description>入库领域模型：会落 Mongo 的实体、MessageType、多态反序列化器、Mongo 访问基座。与通讯用的 PackData 区分开。</description>
 
     <!--
-      装：im/entity/**、im/entity/message/type/MessageType、im/serialize/AbstractMessageDeserializer、
+      装：im/entity/**、im/entity/message/type/MessageType、im/serialize/BaseMessageDeserializer、
           im/common/mongo/*、im/common/friend/{LinkFriendSource,LinkFriendStatus}。
       依赖 spring-data-mongodb 是因为实体带 @Id/@Field、基座用 MongoTemplate —— 这正是它不能并入 link-common 的原因。
     -->
@@ -37,7 +37,7 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-mongodb</artifactId>
         </dependency>
-        <!-- AbstractMessageDeserializer 使用 Gson 适配器还原多态 data 子类 -->
+        <!-- BaseMessageDeserializer 使用 Gson 适配器还原多态 data 子类 -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
@@ -51,6 +51,10 @@
             <artifactId>redisson</artifactId>
             <version>3.52.0</version>
             <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.hibernate.validator</groupId>
+            <artifactId>hibernate-validator</artifactId>
         </dependency>
     </dependencies>
 

@@ -1,5 +1,6 @@
 package com.link.im.entity.data;
 
+import com.google.gson.Gson;
 import com.link.im.entity.base.BaseData;
 import lombok.Data;
 import lombok.ToString;
@@ -67,4 +68,9 @@ public class CallData extends BaseData {
     public static final int GROUP_FINISHED = 2;
     /** 无人接听即结束（全员拒接 / 超时 / 主叫取消） */
     public static final int GROUP_NOT_CONNECTED = 3;
+
+    public String toJson() {
+        String json = new Gson().toJson(this,CallData.class);
+        return json;
+    }
 }

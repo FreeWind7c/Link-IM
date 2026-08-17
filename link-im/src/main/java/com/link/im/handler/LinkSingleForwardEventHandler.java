@@ -10,7 +10,7 @@ import com.link.core.event.handler.EventHandler;
 import com.link.core.session.service.LinkSession;
 import com.link.core.util.seq.MessageSeqAllocator;
 import com.link.im.entity.chat.ChatSession;
-import com.link.im.entity.message.AbstractMessage;
+import com.link.im.entity.base.BaseMessage;
 import com.link.im.entity.message.DefaultMessageInfo;
 import com.link.im.entity.message.GroupMessageInfo;
 import com.link.im.entity.message.type.MessageType;
@@ -18,6 +18,7 @@ import com.link.im.mongo.BasePlatFormMongoService;
 import com.link.im.processor.borad.LinkGroupBroadcaster;
 import io.netty.channel.Channel;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.BulkOperations;
 import org.springframework.stereotype.Component;
@@ -33,7 +34,7 @@ import java.util.List;
  */
 @Slf4j
 @Component
-public class LinkSingleForwardEventHandler extends BasePlatFormMongoService<AbstractMessage> implements EventHandler {
+public class LinkSingleForwardEventHandler extends BasePlatFormMongoService<BaseMessage> implements EventHandler {
 
     /** 单次转发最多携带多少条消息。前端已限制，后端再校验一遍防逆向绕过。 */
     private static final int MAX_FORWARD_MESSAGES = 100;
@@ -86,10 +87,6 @@ public class LinkSingleForwardEventHandler extends BasePlatFormMongoService<Abst
                 forward.getRcvId() == null ? null : forward.getRcvId().size(),
                 channel.id());
 
-        // 原代码：if (stringValidator(sndId, sessionId) || messages.isEmpty() || rcvId.isEmpty()) return;
-        // bug：stringValidator 的语义是“全部非空才返回 true（合法）”，原来漏了 '!'，
-        //      结果变成“输入合法时反而 return”，即校验彻底判反。
-        // 同时 getMessages()/getRcvId() 原来只判 isEmpty 不判 null，为 null 时会 NPE，这里一并补上。
         if (!stringValidator(forward.getSndId(), forward.getSessionId())
                 || forward.getMessages() == null || forward.getMessages().isEmpty()
                 || forward.getRcvId() == null || forward.getRcvId().isEmpty()) {
@@ -109,7 +106,7 @@ public class LinkSingleForwardEventHandler extends BasePlatFormMongoService<Abst
             return;
         }
 
-        // 原代码在这里先把 messages 转成一份 AbstractMessage 列表再传下去，
+        // 原代码在这里先把 messages 转成一份 BaseMessage 列表再传下去，
         // 但转发是“每个接收者各自一份”，共享同一批对象会互相覆盖（见 forwardMessage 里的说明），
         // 所以改为把原始 ForwardMessage 直接传下去，由 forwardMessage 为每个接收者单独生成副本。
         forwardMessage(forward.getSndId(), forward.getRcvId(), forward.getMessages());
@@ -138,13 +135,13 @@ public class LinkSingleForwardEventHandler extends BasePlatFormMongoService<Abst
             // 两端得到同一个 chatId，接收方才能按 chatId 命中本地会话。
             // 注意第二个参数必须是接收者「用户 id」(getRcvId)，不是会话 id(getChatId)——传错会算出对不上的 chatId。
             String chatId = ChatIdGenerator.nextId(sndId, receiver.getRcvId());
-            List<AbstractMessage> copies = new ArrayList<>(forwards.size());
+            List<BaseMessage> copies = new ArrayList<>(forwards.size());
             for (ForwardMessage fm : forwards) {
-                AbstractMessage msg = new DefaultMessageInfo().generateMessage(fm, sndId);
-                MessageSeqAllocator.SeqResult allocate = messageSeqAllocator.allocate(chatId, msg.getId());
+                BaseMessage msg = new DefaultMessageInfo().generateMessage(fm, sndId);
+                MessageSeqAllocator.SeqResult allocate = messageSeqAllocator.allocate(chatId, msg.getId().toHexString());
                 msg.setSeq((int) allocate.seq())
                         .setType(fm.getType())
-                        .setRcvId(receiver.getRcvId())
+                        .setRcvId(new ObjectId(receiver.getRcvId()))
                         .setChatId(chatId);
                 copies.add(msg);
                 if (msg instanceof GroupMessageInfo group)
@@ -155,14 +152,15 @@ public class LinkSingleForwardEventHandler extends BasePlatFormMongoService<Abst
             if (copies.isEmpty())
                 continue;
 
-            copies.sort(Comparator.comparingInt(AbstractMessage::getSeq));
-            AbstractMessage last = copies.get(copies.size() - 1);
+            copies.sort(Comparator.comparingInt(BaseMessage::getSeq));
+            BaseMessage last = copies.get(copies.size() - 1);
             chatBulk.updateOne(
-                    eq(where(col(ChatSession::getChatId)).is(chatId)),   // 原代码用 ChatSessionMember::getChatId，改回本集合字段
-                    update().set(col(ChatSession::getLastMsgSummary), MessageType.summaryOf(last.getType(), last.getData()))
+                    eq(where(col(ChatSession::getChatId)).is(chatId)),   // TODO last.getData()
+                    update().set(col(ChatSession::getLastMsgSummary), MessageType.summaryOf(last.getType(), null))
                             .set(col(ChatSession::getLastMsgType), last.getType())
                             .set(col(ChatSession::getLastMsgTime), now())
-                            .set(col(ChatSession::getLastMsgSeq), last.getSeq()));
+                            .set(col(ChatSession::getLastMsgSeq), last.getSeq())
+            );
             hasChatUpdate = true;
 
 
@@ -200,7 +198,7 @@ public class LinkSingleForwardEventHandler extends BasePlatFormMongoService<Abst
      * 一个接收者的投递单元：他自己的在线 channel + 他自己的消息副本。
      * 用它把“生成/落库”与“推送”两个阶段解耦，保证先持久化再投递。
      */
-    private record Delivery(List<Channel> channels, List<AbstractMessage> messages) {
+    private record Delivery(List<Channel> channels, List<BaseMessage> messages) {
     }
 
 }

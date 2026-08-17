@@ -1,5 +1,6 @@
 package com.link.im.handler;
 
+import com.google.gson.Gson;
 import com.link.common.channel.DefaultChannelAttributeKeys;
 import com.link.common.core.event.EventType;
 import com.link.common.core.event.GroupRTCEventType;
@@ -51,7 +52,7 @@ public class LinkRtcGroupEventHandler implements EventHandler {
     @Override
     public void handler(Object obj, Channel channel) {
         LinkRtcGroupCall call = (LinkRtcGroupCall) obj;
-
+        log.info("event data:" + new Gson().toJson(call));
         // 1. 身份校验：以连接上的登录态为准，不信任客户端传来的 sndId
         LinkSession session = (LinkSession) channel
                 .attr(AttributeKey.valueOf(DefaultChannelAttributeKeys.SESSION)).get();

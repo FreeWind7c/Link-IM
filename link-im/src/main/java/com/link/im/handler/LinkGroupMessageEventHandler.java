@@ -6,15 +6,16 @@ import com.link.core.config.LinkCoreConfig;
 import com.link.core.event.handler.EventHandler;
 import com.link.core.util.seq.MessageSeqAllocator;
 import com.link.im.constants.group.GroupRoleConstant;
+import com.link.im.dto.message.GroupMessageDTO;
+import com.link.im.entity.base.BaseData;
 import com.link.im.entity.chat.ChatSession;
 import com.link.im.entity.chat.ChatSessionMember;
 import com.link.im.entity.data.Mention;
 import com.link.im.entity.data.TextData;
 import com.link.im.entity.group.GroupMember;
-import com.link.im.entity.message.AbstractMessage;
-import com.link.im.entity.message.DefaultMessageInfo;
+import com.link.im.entity.base.BaseMessage;
 import com.link.im.entity.message.GroupMessageInfo;
-import com.link.im.entity.message.QuoteRef;
+import com.link.im.entity.message.quote.QuoteRef;
 import com.link.im.entity.message.type.MessageType;
 import com.link.im.mongo.BasePlatFormMongoService;
 import com.link.im.processor.message.LinkGroupMessageProcessor;
@@ -83,7 +84,7 @@ public class LinkGroupMessageEventHandler extends BasePlatFormMongoService<Group
     @Override
     public void handler(Object obj, Channel channel) {
         GroupMessageInfo message = (GroupMessageInfo) obj;
-        MessageSeqAllocator.SeqResult seqResult = messageSeqAllocator.allocate(message.getChatId(), message.getId());
+        MessageSeqAllocator.SeqResult seqResult = messageSeqAllocator.allocate(message.getChatId(), message.getId().toHexString());
 
         if (seqResult.duplicate())
         {
@@ -92,14 +93,14 @@ public class LinkGroupMessageEventHandler extends BasePlatFormMongoService<Group
         }
         message.setSeq((int) seqResult.seq());
 
-        this.workerPool.submit(() -> processHeavy(message, channel));
+        this.workerPool.submit(() -> processHeavy(message,channel));
     }
 
     private void processHeavy(GroupMessageInfo message, Channel channel) {
 
         sanitizeMentions(message);
         sanitizeQuote(message);
-        LinkAck linkAck = new LinkAck(message.getId(),message.getChatId(),message.getSeq());
+        LinkAck linkAck = new LinkAck(message.getId().toHexString(),message.getChatId(),message.getSeq());
         try {
             this.insert(message);
         } catch (org.springframework.dao.DuplicateKeyException e) {
@@ -113,7 +114,7 @@ public class LinkGroupMessageEventHandler extends BasePlatFormMongoService<Group
         );
 
         Update update = update()
-                .set(col(ChatSession::getLastMsgSummary), MessageType.summaryOf(message.getType(), message.getData()))
+                .set(col(ChatSession::getLastMsgSummary), MessageType.summaryOf(message.getType(), message.getBaseData()))
                 .set(col(ChatSession::getLastMsgType), message.getType())
                 .set(col(ChatSession::getLastMsgTime), now())
                 .set(col(ChatSession::getLastMsgSeq), message.getSeq());
@@ -130,7 +131,7 @@ public class LinkGroupMessageEventHandler extends BasePlatFormMongoService<Group
     private static final int AT_LIST_MAX = 10;
 
     private void pushAtList(GroupMessageInfo message) {
-        if (!(message.getData() instanceof TextData td)) {
+        if (!(message.getBaseData() instanceof TextData td)) {
             return;
         }
         boolean hasMentions = td.getMentions() != null && !td.getMentions().isEmpty();
@@ -139,18 +140,18 @@ public class LinkGroupMessageEventHandler extends BasePlatFormMongoService<Group
         }
 
         Criteria criteria = where(col(ChatSessionMember::getChatId)).is(message.getChatId());
-        boolean validSnd = ObjectId.isValid(message.getSndId());
+        ObjectId sndIdObj = message.getSndId();
         if (td.isMentionAll()) {
             // @全体：覆盖全群，排除发送者自己（同一字段只加一次 ne，避免 Criteria 重复键报错）
-            if (validSnd) {
-                criteria.and(col(ChatSessionMember::getOwnerId)).ne(new ObjectId(message.getSndId()));
+            if (sndIdObj != null) {
+                criteria.and(col(ChatSessionMember::getOwnerId)).ne(sndIdObj);
             }
         } else {
             // @个人：仅命中 mentions 里的 userId（sanitizeMentions 已保证都是本群成员），并剔除发送者
             List<ObjectId> targetIds = new ArrayList<>();
             for (Mention m : td.getMentions()) {
                 if (m != null && ObjectId.isValid(m.getUserId())
-                        && !(validSnd && m.getUserId().equals(message.getSndId()))) {
+                        && !(sndIdObj != null && m.getUserId().equals(sndIdObj.toHexString()))) {
                     targetIds.add(new ObjectId(m.getUserId()));
                 }
             }
@@ -180,19 +181,19 @@ public class LinkGroupMessageEventHandler extends BasePlatFormMongoService<Group
         }
 
         Query srcQuery = eq(
-                where(col(AbstractMessage::getChatId)).is(message.getChatId())
-                        .and(col(AbstractMessage::getSeq)).is(quote.getSeq())
+                where(col(BaseMessage::getChatId)).is(message.getChatId())
+                        .and(col(BaseMessage::getSeq)).is(quote.getSeq())
         );
         GroupMessageInfo source = this.findOne(srcQuery);
         if (source == null || !MessageType.isQuotable(source.getType())) {
             message.setQuote(null);
             return;
         }
-        message.setQuote(QuoteRef.of(source));
+        message.setQuote(QuoteRef.of(source, message.getBaseData()));
     }
 
     private void sanitizeMentions(GroupMessageInfo message) {
-        if (!(message.getData() instanceof TextData td)) {
+        if (!(message.getBaseData() instanceof TextData td)) {
             return;
         }
         boolean hasMentions = td.getMentions() != null && !td.getMentions().isEmpty();
@@ -217,7 +218,7 @@ public class LinkGroupMessageEventHandler extends BasePlatFormMongoService<Group
         }
 
         // 2) @全体权限：仅群主/管理员。无权限置回 false。仅在确有 mentionAll 时才查角色（罕见路径）。
-        if (td.isMentionAll() && !canMentionAll(message.getChatId(), message.getSndId())) {
+        if (td.isMentionAll() && !canMentionAll(message.getChatId(), message.getSndId().toHexString())) {
             td.setMentionAll(false);
         }
 

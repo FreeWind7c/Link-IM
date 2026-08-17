@@ -1,6 +1,7 @@
 package com.link.im.processor;
 
-import com.link.im.entity.message.AbstractMessage;
+import com.link.im.dto.message.DefaultMessageDTO;
+import com.link.im.entity.base.BaseMessage;
 import io.netty.channel.Channel;
 import org.springframework.stereotype.Service;
 
@@ -11,6 +12,6 @@ import org.springframework.stereotype.Service;
 @Service
 public interface LinkMessageProcessor {
 
-    public void processor(AbstractMessage message, Channel channel);
+    public void processor(BaseMessage message, Channel channel);
 
 }

@@ -1,8 +1,10 @@
 package com.link.im.handler.group.call;
 
+import com.google.gson.Gson;
 import com.link.common.core.event.EventType;
 import com.link.common.core.model.call.LinkRtcGroupCall;
 import com.link.core.config.LinkCoreConfig;
+import com.link.im.entity.base.BaseData;
 import com.link.im.entity.chat.ChatSession;
 import com.link.im.entity.data.CallData;
 import com.link.im.entity.data.CallParticipant;
@@ -48,17 +50,8 @@ public abstract class BaseGroupCallHandler extends BasePlatFormMongoService<Grou
     @Autowired
     protected LinkRedisService redisService;
 
-    // ---------- 定位通话记录 ----------
 
-    /**
-     * 按上报里的关联键定位通话记录。
-     *
-     * <p>优先用 messageId（主叫生成、经 TRTC userData 透传给所有被叫，三端一致）；
-     * 老客户端没透传 userData 时被叫拿不到 messageId，退回用 callId 关联
-     * （callId 由 TRTC 分配，同一通电话内全局一致）。
-     *
-     * @return 定位用的 Query，两个键都为空时返回 null（调用方应提前拦掉）
-     */
+
     protected Query locate(LinkRtcGroupCall call) {
         if (notEmpty(call.getMessageId())) {
             return eq(where(col(DefaultMessageInfo::getId)).is(call.getMessageId()));
@@ -69,14 +62,12 @@ public abstract class BaseGroupCallHandler extends BasePlatFormMongoService<Grou
         return null;
     }
 
-    /** 定位通话记录并读出来，不存在返回 null */
     protected DefaultMessageInfo findCall(LinkRtcGroupCall call) {
         Query q = locate(call);
         if (q == null) return null;
         return this.getMongoTemplate().findOne(q, DefaultMessageInfo.class);
     }
 
-    // ---------- 推进参与者状态 ----------
 
     /**
      * 把某个参与者的状态向前推进到 {@code toStatus}，并按需写入时间戳。
@@ -169,27 +160,11 @@ public abstract class BaseGroupCallHandler extends BasePlatFormMongoService<Grou
         this.updateFirst(q, update().push("data.participants", p));
     }
 
-    // ---------- 结算整通通话 ----------
-
-    /**
-     * 检查通话是否该结束，是则结算：写 status / end_time，更新会话摘要，推送给群成员。
-     *
-     * <p>结束的判定：<b>所有参与者都处于终态</b>（离开/拒接/超时/忙线）。
-     * 只要还有一个人是 JOINED 或 INVITED，通话就继续。
-     *
-     * <p>最终状态取决于「有没有人真正接通过」：
-     * <ul>
-     *   <li>有人 JOINED 过（join_time &gt; 0）→ GROUP_FINISHED，带通话时长；</li>
-     *   <li>全程无人接通 → GROUP_NOT_CONNECTED（无人接听）。</li>
-     * </ul>
-     *
-     * <p>用条件更新保证只结算一次：Query 里带上 {@code status in (CALLING, CONNECTED)}，
-     * 已结算的记录不会被重复结算（多人同时上报 HANG_UP 时只有一个能成功）。
-     */
     protected void settleIfFinished(LinkRtcGroupCall call) {
         DefaultMessageInfo message = findCall(call);
+
         if (message == null) return;
-        if (!(message.getData() instanceof CallData data)) return;
+        if (!(message.getBaseData() instanceof CallData data)) return;
         if (!data.isGroupCall()) return;
 
         List<CallParticipant> participants = data.getParticipants();
@@ -227,28 +202,18 @@ public abstract class BaseGroupCallHandler extends BasePlatFormMongoService<Grou
         pushToMembers(settled);
     }
 
-    // ---------- 会话与推送 ----------
-
-    /** 更新会话列表的「最后一条消息」摘要，让通话记录能出现在会话栏 */
     protected void updateChatSession(GroupMessageInfo message) {
         if (message.getChatId() == null) return;
         Query eq = eq(where(col(ChatSession::getChatId)).is(message.getChatId()));
         Update update = update()
                 .set(col(ChatSession::getLastMsgSummary),
-                        MessageType.summaryOf(message.getType(), message.getData()))
+                        MessageType.summaryOf(message.getType(), message.getBaseData()))
                 .set(col(ChatSession::getLastMsgType), message.getType())
                 .set(col(ChatSession::getLastMsgTime), now())
                 .set(col(ChatSession::getLastMsgSeq), message.getSeq());
         this.getMongoTemplate().updateFirst(eq, update, ChatSession.class);
     }
 
-    /**
-     * 把通话记录消息推给群内所有在线成员，让他们的会话列表和消息流实时更新。
-     *
-     * <p>注意这里推的是<b>通话记录消息</b>（DEFAULT_MESSAGE），不是通话信令——
-     * 参与者的通话界面由 TRTC 自己驱动，服务端不参与。这一步纯粹是为了
-     * 让没参与通话的群成员也能看到「群里刚刚有过一通电话」。
-     */
     protected void pushToMembers(GroupMessageInfo message) {
         if (message.getChatId() == null) return;
         Set<String> memberIds = this.redisService.getChatMemberIds(message.getChatId());

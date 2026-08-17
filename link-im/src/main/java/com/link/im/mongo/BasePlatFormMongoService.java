@@ -24,6 +24,7 @@ public abstract class BasePlatFormMongoService<T> {
 
     protected final Class<T> ENTITY_CLASS;
 
+    public Gson gson = new Gson();
 
 
     @SuppressWarnings("unchecked")
@@ -63,6 +64,10 @@ public abstract class BasePlatFormMongoService<T> {
                 + "若中间隔了抽象类，请在该抽象类上写死实体类型");
     }
 
+    public void print(String title,Object t){
+        String json = gson.toJson(t);
+        log.info(title + json);
+    }
 
     public static boolean pageValidator(int skip,int limit){
         if (skip < 0 || limit <=0)

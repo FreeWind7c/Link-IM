@@ -1,4 +1,4 @@
-package com.link.restapi.module.trtc;
+package com.link.restapi.module.trtc.config;
 
 import com.alibaba.fastjson.JSONObject;
 

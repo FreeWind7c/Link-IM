@@ -1,10 +1,10 @@
 package com.link.restapi.module.message.service;
 
+import com.link.im.entity.base.BaseMessage;
 import com.link.im.entity.message.GroupMessageInfo;
 import com.link.im.entity.chat.ChatSessionMember;
 import com.link.im.enums.gloabl.GlobalCode;
 import com.link.im.mongo.BasePlatFormMongoService;
-import com.link.im.entity.message.AbstractMessage;
 import com.link.im.entity.message.DefaultMessageInfo;
 import com.link.im.util.ApiResult;
 import com.link.restapi.module.message.model.dto.LinkAroundMessageDto;
@@ -13,6 +13,7 @@ import com.link.restapi.module.message.model.dto.LinkPullMessageDto;
 import com.link.restapi.module.message.model.vo.LinkMessageInfoVo;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
+import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -41,13 +42,13 @@ public class MessageInfoService extends BasePlatFormMongoService<DefaultMessageI
         if (group && !stringValidator(dto.getUserId()))
             return ApiResult.error(GlobalCode.PARAMETER_VALIDATOR_ERROR);
 
-        Criteria criteria = where(col(AbstractMessage::getChatId)).is(dto.getChatId());
+        Criteria criteria = where(col(BaseMessage::getChatId)).is(dto.getChatId());
         if (group) {
             applyBlackoutGaps(criteria, dto.getChatId(), dto.getUserId());
         }
 
         Query eq = eq(criteria);
-        eq.with(Sort.by(Sort.Direction.DESC,col(AbstractMessage::getTimestamp)));
+        eq.with(Sort.by(Sort.Direction.DESC,col(BaseMessage::getTimestamp)));
         eq.skip(dto.getSkip());
         eq.limit(dto.getLimit());
 
@@ -57,12 +58,26 @@ public class MessageInfoService extends BasePlatFormMongoService<DefaultMessageI
     }
 
     private List<LinkMessageInfoVo> createVo(List<DefaultMessageInfo> messages) {
-        List<LinkMessageInfoVo> vos = messages.stream().map(LinkMessageInfoVo::from).collect(Collectors.toList());
+        List<LinkMessageInfoVo> vos = messages.stream().map(item -> {
+            LinkMessageInfoVo vo = new LinkMessageInfoVo();
+            BeanUtils.copyProperties(item, vo);
+            vo.setId(item.getId().toHexString());
+            vo.setSndId(item.getSndId().toHexString());
+            vo.setRcvId(item.getRcvId().toHexString());
+            return vo;
+        }).collect(Collectors.toList());
         return vos;
     }
 
     private List<LinkMessageInfoVo> createGroupVo(List<GroupMessageInfo> messages) {
-        List<LinkMessageInfoVo> vos = messages.stream().map(LinkMessageInfoVo::from).collect(Collectors.toList());
+        List<LinkMessageInfoVo> vos = messages.stream().map(item -> {
+            LinkMessageInfoVo vo = new LinkMessageInfoVo();
+            BeanUtils.copyProperties(item, vo);
+            vo.setId(item.getId().toHexString());
+            vo.setSndId(item.getSndId().toHexString());
+            vo.setRcvId(item.getRcvId().toHexString());
+            return vo;
+        }).collect(Collectors.toList());
         return vos;
     }
 
@@ -71,8 +86,8 @@ public class MessageInfoService extends BasePlatFormMongoService<DefaultMessageI
         if (group && !stringValidator(dto.getUserId()))
             return ApiResult.error(GlobalCode.PARAMETER_VALIDATOR_ERROR);
 
-        Criteria criteria = where(col(AbstractMessage::getChatId)).is(dto.getChatId())
-                .and(col(AbstractMessage::getSeq)).gt(dto.getFrom()).lt(dto.getTo());
+        Criteria criteria = where(col(BaseMessage::getChatId)).is(dto.getChatId())
+                .and(col(BaseMessage::getSeq)).gt(dto.getFrom()).lt(dto.getTo());
         if (group) {
             applyBlackoutGaps(criteria, dto.getChatId(), dto.getUserId());
         }
@@ -108,12 +123,12 @@ public class MessageInfoService extends BasePlatFormMongoService<DefaultMessageI
         int size = dto.getSize() <= 0 ? AROUND_DEFAULT_SIZE : Math.min(dto.getSize(), AROUND_MAX_SIZE);
 
         // 前半：seq < center，倒序取 size 条（离中心最近的 size 条）
-        Query beforeQuery = eq(aroundCriteria(dto, group).and(col(AbstractMessage::getSeq)).lt(dto.getCenterSeq()))
-                .with(Sort.by(Sort.Direction.DESC, col(AbstractMessage::getSeq)))
+        Query beforeQuery = eq(aroundCriteria(dto, group).and(col(BaseMessage::getSeq)).lt(dto.getCenterSeq()))
+                .with(Sort.by(Sort.Direction.DESC, col(BaseMessage::getSeq)))
                 .limit(size);
         // 后半：seq >= center，正序取 size+1 条（含中心本身 + 后 size 条）
-        Query afterQuery = eq(aroundCriteria(dto, group).and(col(AbstractMessage::getSeq)).gte(dto.getCenterSeq()))
-                .with(Sort.by(Sort.Direction.ASC, col(AbstractMessage::getSeq)))
+        Query afterQuery = eq(aroundCriteria(dto, group).and(col(BaseMessage::getSeq)).gte(dto.getCenterSeq()))
+                .with(Sort.by(Sort.Direction.ASC, col(BaseMessage::getSeq)))
                 .limit(size + 1);
 
         List<LinkMessageInfoVo> result = new ArrayList<>();
@@ -133,7 +148,7 @@ public class MessageInfoService extends BasePlatFormMongoService<DefaultMessageI
 
     /** aroundMessage 的基础条件：chatId 命中 + 群聊叠加空档过滤。每次调用新建，避免 Criteria 复用污染。 */
     private Criteria aroundCriteria(LinkAroundMessageDto dto, boolean group) {
-        Criteria criteria = where(col(AbstractMessage::getChatId)).is(dto.getChatId());
+        Criteria criteria = where(col(BaseMessage::getChatId)).is(dto.getChatId());
         if (group) {
             applyBlackoutGaps(criteria, dto.getChatId(), dto.getUserId());
         }
@@ -162,7 +177,7 @@ public class MessageInfoService extends BasePlatFormMongoService<DefaultMessageI
 
         List<Criteria> holes = new ArrayList<>();
         for (ChatSessionMember.Gap gap : member.getBlackoutGaps()) {
-            Criteria hole = where(col(AbstractMessage::getSeq)).gte(gap.getFrom());
+            Criteria hole = where(col(BaseMessage::getSeq)).gte(gap.getFrom());
             if (gap.getTo() != null) {
                 hole.lte(gap.getTo());
             }

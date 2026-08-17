@@ -1,110 +1,110 @@
 package com.link.restapi.module.trtc.service;
 
-import com.link.im.enums.gloabl.GlobalCode;
+import com.alibaba.fastjson.JSONObject;
+import com.link.core.util.seq.MessageSeqAllocator;
+import com.link.im.constants.trtc.TrtcCallStatusCode;
+import com.link.im.entity.base.BaseMessage;
+import com.link.im.entity.data.NoticeData;
+import com.link.im.entity.data.notice.TrtcCallNoticeData;
+import com.link.im.entity.message.type.MessageType;
+import com.link.im.entity.rtc.TrtcCallInfo;
+import com.link.im.mongo.BasePlatFormMongoService;
 import com.link.im.util.ApiResult;
-import com.link.restapi.module.trtc.TLSSigAPIv2;
-import com.link.restapi.module.trtc.config.TrtcProperties;
-import com.link.restapi.module.trtc.model.vo.LinkTrtcUserSigVo;
+import com.link.restapi.module.trtc.model.dto.LinkTrtcRoomIdDTO;
+import com.link.restapi.push.RemotePushPublisher;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
-/**
- * TRTC 相关服务：目前只有 UserSig 签发。
- *
- * <p>这个接口是<b>服务端介入 RTC 流程的唯一卡点</b>。TRTC 的呼叫信令走腾讯云 IM，
- * 我方后端全程看不见，唯一能施加控制的时机就是「发不发凭证给你」。
- * 因此权限校验（禁言、封禁、会员等级限制通话）应当加在这里，
- * 见 {@link #checkPermission}。
- *
- * @Author: 无敌代码写手
- * @CreateTime: 2026年07月31日
- */
+
 @Slf4j
 @Component
-public class LinkTrtcService {
+public class LinkTrtcService extends BasePlatFormMongoService<TrtcCallInfo> {
 
     @Autowired
-    private TrtcProperties properties;
+    private MessageSeqAllocator allocator;
 
-    /**
-     * 官方签名器实例。SDKAppID / SecretKey 在运行期固定，
-     * 缓存一份即可，不必每次签发都 new（它内部只有两个 final 字段，线程安全）。
-     */
-    private volatile TLSSigAPIv2 sigApi;
+    @Autowired
+    private RemotePushPublisher pushPublisher;
 
-    /**
-     * 懒加载签名器。放在这里而非构造函数，是因为 @ConfigurationProperties
-     * 的绑定发生在依赖注入之后，构造期取不到配置值。
-     */
-    private TLSSigAPIv2 sigApi() {
-        TLSSigAPIv2 api = this.sigApi;
-        if (api == null) {
-            synchronized (this) {
-                api = this.sigApi;
-                if (api == null) {
-                    api = new TLSSigAPIv2(properties.getSdkAppId(), properties.getSecretKey());
-                    this.sigApi = api;
-                }
-            }
-        }
-        return api;
+    public void dissolveRoom(JSONObject eventInfo) {
+        Query query = eq(
+                where(col(TrtcCallInfo::getRoomId)).is(eventInfo.getString("RoomId"))
+        );
+        Update update = update()
+                .set(col(TrtcCallInfo::getStatus), TrtcCallStatusCode.CALL_ENDED)
+                .set(col(TrtcCallInfo::getEndTime),now());
+        TrtcCallInfo call = this.findOne(query);
+        this.updateFirst(query,update);
+
+        ObjectId messageId = new ObjectId();
+        TrtcCallNoticeData trtcCallNoticeData = new TrtcCallNoticeData().setText("群通话结束");
+        NoticeData noticeData = new NoticeData().setChatId(call.getChatId()).setData(trtcCallNoticeData);
+        MessageSeqAllocator.SeqResult result = allocator.allocate(call.getChatId(), messageId.toHexString());
+        BaseMessage message = new BaseMessage().setId(messageId)
+                .setSeq((int)result.seq())
+                .setType(MessageType.NOTICE_MESSAGE.getType())
+                .setChatId(call.getChatId())
+                .setSndId(call.getInitiatorId())
+                .setRcvId(call.getReceiverId())
+                .setState(1)
+                .setData(noticeData.toJson())
+                .setTimestamp(now());
+        this.pushPublisher.pushMessageStorage(message,call.isGroupCall() ? 2 : 1);
+        log.info("解散房间:"+eventInfo.getString("RoomId"));
     }
 
-    /**
-     * 为当前登录用户签发 TRTC 凭证。
-     *
-     * @param userId 当前登录用户 ID，<b>由网关从 JWT 解出并写入 X-User-Id 头</b>，
-     *               不接受前端传参——否则等于把签发权交还给前端，
-     *               任何人都能以他人身份登录腾讯云 IM。
-     */
-    public ApiResult userSig(String userId) {
-        if (!StringUtils.hasText(userId)) {
-            // 正常情况下网关已拦截无 token 请求，走到这里说明网关配置有问题
-            log.warn("签发 TRTC 凭证失败：缺少登录身份，请检查网关是否注入 X-User-Id");
-            return ApiResult.notLogin();
-        }
-
-        if (!StringUtils.hasText(properties.getSecretKey()) || properties.getSdkAppId() <= 0) {
-            log.error("TRTC 未配置：link.trtc.sdk-app-id / link.trtc.secret-key 缺失");
-            return ApiResult.error(GlobalCode.GLOBAL_ERROR);
-        }
-
-        if (!checkPermission(userId)) {
-            return ApiResult.error(GlobalCode.NO_PERMISSION);
-        }
-
-        long expireSeconds = properties.getExpireSeconds();
-        String userSig = sigApi().genUserSig(userId, expireSeconds);
-        // 官方实现里 HMAC 异常会吞掉并返回空串，这里必须拦住，
-        // 否则前端拿着空 sig 去 init() 只会得到一个语义不明的 SDK 报错
-        if (!StringUtils.hasText(userSig)) {
-            log.error("签发 TRTC 凭证失败：签名结果为空 -> userId={}", userId);
-            return ApiResult.error(GlobalCode.GLOBAL_ERROR);
-        }
-
-        LinkTrtcUserSigVo vo = new LinkTrtcUserSigVo()
-                .setSdkAppId(properties.getSdkAppId())
-                .setUserId(userId)
-                .setUserSig(userSig)
-                .setExpireAt(System.currentTimeMillis() + expireSeconds * 1000L);
-
-        log.info("签发 TRTC 凭证 -> userId={} 有效期={}s", userId, expireSeconds);
-        return ApiResult.success().setData(vo);
+    public void joinRoom(JSONObject eventInfo) {
+        Query query = eq(
+                where(col(TrtcCallInfo::getRoomId)).is(eventInfo.getString("RoomId"))
+        );
+        Update update = update().addToSet(col(TrtcCallInfo::getParticipantIds), eventInfo.getString("UserId"));
+        this.updateFirst(query,update);
+        log.info("加入房间:"+eventInfo.getString("UserId"));
     }
 
-    /**
-     * 通话权限校验。当前默认放行，按业务需要在此扩展。
-     *
-     * <p>这里是唯一有效的拦截点：一旦凭证发出去，用户就能直接通过腾讯云 IM
-     * 发起通话，我方后端拦不住（信令不经过我们）。而且凭证在有效期内一直可用，
-     * 所以「发出去之后再封禁」是无法立即生效的——只能等凭证过期。
-     * 若业务对实时性要求高，应缩短 {@code expireSeconds}。
-     *
-     * <p>可扩展的校验项：账号是否被封禁 / 是否在禁言期 / 会员等级是否允许群通话等。
-     */
-    private boolean checkPermission(String userId) {
-        return true;
+    public void leaveRoom(JSONObject eventInfo) {
+        log.info("离开房间:"+eventInfo.getString("RoomId"));
+    }
+
+    public ApiResult startCall(LinkTrtcRoomIdDTO dto) {
+        String roomId = new ObjectId().toHexString();
+        TrtcCallInfo trtcCallInfo = createRtcCall(dto, roomId);
+        TrtcCallNoticeData trtcCallNoticeData = new TrtcCallNoticeData().setText(dto.getSndName() + "发起了群通话");
+        NoticeData data = new NoticeData().setChatId(dto.getChatId()).setData(trtcCallNoticeData);
+        this.insert(trtcCallInfo);
+        this.pushPublisher.pushMessageStorage(createMessage(dto, data),dto.getType());
+        return ApiResult.success().setData(roomId);
+    }
+
+    private TrtcCallInfo createRtcCall(LinkTrtcRoomIdDTO dto, String roomId) {
+        TrtcCallInfo trtcCallInfo = new TrtcCallInfo();
+        trtcCallInfo.setRoomId(roomId)
+                .setInitiatorId(new ObjectId(dto.getSndId()))
+                .setReceiverId(new ObjectId(dto.getRcvId()))
+                .setChatId(dto.getChatId())
+                .setStartTime(System.currentTimeMillis())
+                .setEndTime(0L)
+                .setGroupCall(dto.getType() == 2)
+                .setStatus(TrtcCallStatusCode.NO_ANSWER);
+        return trtcCallInfo;
+    }
+
+    private BaseMessage createMessage(LinkTrtcRoomIdDTO dto, NoticeData data) {
+        MessageSeqAllocator.SeqResult allocate = allocator.allocate(dto.getChatId(), dto.getMessageId());
+        return new BaseMessage().setId(new ObjectId(dto.getMessageId()))
+                .setChatId(dto.getChatId())
+                .setSeq((int) allocate.seq())
+                .setType(MessageType.NOTICE_MESSAGE.getType())
+                .setSndId(new ObjectId(dto.getSndId()))
+                .setRcvId(new ObjectId(dto.getRcvId()))
+                .setState(1)
+                .setData(data.toJson())
+                .setBaseData(data)
+                .setTimestamp(System.currentTimeMillis())
+                .setQuote(null);
     }
 }

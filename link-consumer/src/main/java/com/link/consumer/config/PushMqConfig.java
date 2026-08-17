@@ -1,6 +1,11 @@
 package com.link.consumer.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.link.im.constants.publisher.PublisherRouterKeys;
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
@@ -21,6 +26,52 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class PushMqConfig {
+
+
+    /**
+     * 创建 Exchange
+     */
+    @Bean
+    public DirectExchange messageExchange() {
+        return new DirectExchange(PublisherRouterKeys.MESSAGE_EXCHANGE);
+    }
+
+
+
+
+    @Bean
+    public Queue messageStorageQueue() {
+        return new Queue(PublisherRouterKeys.DEFAULT_MESSAGE_STORAGE_QUEUE);
+    }
+
+
+    @Bean
+    public Binding messageStorageBinding(
+            DirectExchange messageExchange,
+            Queue messageStorageQueue) {
+
+        return BindingBuilder
+                .bind(messageStorageQueue)
+                .to(messageExchange)
+                .with(PublisherRouterKeys.DEFAULT_MESSAGE_STORAGE_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue messageStorageQueue1() {
+        return new Queue(PublisherRouterKeys.GROUP_MESSAGE_STORAGE_QUEUE);
+    }
+
+
+    @Bean
+    public Binding messageStorageBinding1(
+            DirectExchange messageExchange,
+            Queue messageStorageQueue) {
+
+        return BindingBuilder
+                .bind(messageStorageQueue)
+                .to(messageExchange)
+                .with(PublisherRouterKeys.GROUP_MESSAGE_STORAGE_ROUTING_KEY);
+    }
 
     /** 拓扑声明器：把监听器上 @QueueBinding 声明的 exchange/queue/binding 自动在 broker 创建 */
     @Bean

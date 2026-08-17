@@ -33,6 +33,9 @@ public class UserInfo {
 
     private String password;
 
+    // 0普通用户 1VIP用户 2机器人
+    private int category;
+
     @Field("register_time")
     private long registerTime;
 

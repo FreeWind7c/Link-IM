@@ -6,11 +6,11 @@ import com.link.core.event.handler.GroupRTCEventHandler;
 import com.link.core.util.seq.MessageSeqAllocator;
 import com.link.im.entity.data.CallData;
 import com.link.im.entity.data.CallParticipant;
-import com.link.im.entity.message.DefaultMessageInfo;
 import com.link.im.entity.message.GroupMessageInfo;
 import com.link.im.entity.message.type.MessageType;
 import io.netty.channel.Channel;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
@@ -43,6 +43,7 @@ public class LinkGroupRtcCallHandler extends BaseGroupCallHandler implements Gro
 
     @Override
     public void handler(LinkRtcGroupCall call, Channel channel) {
+        print("发起通话:" , call);
         // CALL 必须带 messageId：它是后续所有上报的关联键，没有就没法建记录
         if (!notEmpty(call.getMessageId()) || !notEmpty(call.getChatId())) {
             log.warn("群通话发起缺少 messageId/chatId，丢弃 -> sndId={}", call.getSndId());
@@ -58,11 +59,11 @@ public class LinkGroupRtcCallHandler extends BaseGroupCallHandler implements Gro
         }
 
         GroupMessageInfo message = (GroupMessageInfo) new GroupMessageInfo()
-                .setId(call.getMessageId())
+                .setId(new ObjectId(call.getMessageId()))
                 .setType(MessageType.RTC_CALL_MESSAGE.getType())
-                .setSndId(call.getSndId())
+                .setSndId(new ObjectId(call.getSndId()))
                 // 群通话没有单一接收者，rcvId 留空，接收范围由 chatId 决定
-                .setRcvId(null)
+                .setRcvId(new ObjectId(call.getGroupId()))
                 .setChatId(call.getChatId())
                 .setState(1)
                 .setData(new CallData()
@@ -74,7 +75,7 @@ public class LinkGroupRtcCallHandler extends BaseGroupCallHandler implements Gro
                         .setGroupCall(true)
                         .setRoomId(call.getRoomId())
                         .setCallId(call.getCallId())
-                        .setParticipants(buildParticipants(call)))
+                        .setParticipants(buildParticipants(call)).toJson())
                 .setTimestamp(now());
         message.setSeq((int) allocate.seq());
 
@@ -88,7 +89,7 @@ public class LinkGroupRtcCallHandler extends BaseGroupCallHandler implements Gro
 
         log.info("群通话发起 -> messageId={} chatId={} 参与者={}",
                 call.getMessageId(), call.getChatId(),
-                message.getData() instanceof CallData d ? d.getParticipants().size() : 0);
+                message.getBaseData() instanceof CallData d ? d.getParticipants().size() : 0);
 
         updateChatSession(message);
         pushToMembers(message);
