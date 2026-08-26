@@ -102,6 +102,6 @@ public class LinkChatSessionVo {
 
     public static LinkChatSessionVo fromVo(ChatSession session) {
         LinkChatSessionVo vo = new LinkChatSessionVo();
-        vo.set
+//        vo.set
     }
 }
