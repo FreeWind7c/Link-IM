@@ -1,6 +1,6 @@
 package com.link.restapi.module.user.controller;
 
-import com.link.im.util.ApiResult;
+import com.link.restapi.utils.ApiResult;
 
 import com.link.restapi.module.user.model.dto.LinkUserAuthDTO;
 
@@ -9,8 +9,9 @@ import com.link.restapi.module.user.model.dto.LinkUserReportTokenDto;
 import com.link.restapi.module.user.service.UserInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.objenesis.SpringObjenesis;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * @Author: 无敌代码写手
@@ -27,6 +28,11 @@ public class LinkUserInfoCtrl {
 
     @Autowired
     private RedisTemplate redisTemplate;
+
+
+
+
+
 
     @PostMapping("/verify-survival-status")
     public ApiResult verifySurvivalStatus(@RequestBody LinkUserReportTokenDto dto){

@@ -12,6 +12,8 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class LinkFriend {
 
+    private String requestId;
+
     private String userId;
 
     private String nickname;

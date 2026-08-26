@@ -1,29 +1,30 @@
 package com.link.im.handler;
 
-import com.google.gson.Gson;
 import com.link.common.core.model.ack.LinkAck;
 import com.link.core.config.LinkCoreConfig;
 import com.link.common.core.event.EventType;
 import com.link.core.event.handler.EventHandler;
 
 import com.link.core.util.seq.MessageSeqAllocator;
-import com.link.im.entity.base.BaseData;
 import com.link.im.mongo.BasePlatFormMongoService;
-import com.link.im.entity.chat.ChatSession;
 import com.link.im.entity.message.DefaultMessageInfo;
 import com.link.im.entity.message.quote.QuoteRef;
 import com.link.im.entity.message.type.MessageType;
 import com.link.im.processor.message.LinkDefaultMessageProcessor;
+import com.link.im.publisher.MessageStoragePublisher;
 
+import com.link.im.repository.ChatSessionRepository;
 import io.netty.channel.Channel;
 import lombok.extern.slf4j.Slf4j;
-import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @Author: 无敌代码写手
@@ -43,10 +44,16 @@ public class LinkDefaultMessageEventHandler extends BasePlatFormMongoService<Def
     @Autowired
     private LinkDefaultMessageProcessor messageProcessor;
 
+    @Autowired
+    private ChatSessionRepository sessionRepository;
 
     @Autowired
     @Qualifier("IMExecutor")
     private ThreadPoolTaskExecutor workerPool;
+
+    /** 落库投递：实时链路不再同步写 Mongo，改投 MQ 由消费端限速消化。 */
+    @Autowired
+    private MessageStoragePublisher storagePublisher;
 
 
     @Override
@@ -64,49 +71,86 @@ public class LinkDefaultMessageEventHandler extends BasePlatFormMongoService<Def
         return ((DefaultMessageInfo) obj).getChatId();
     }
 
+    private int i = 0;
+
     @Override
     public void handler(Object obj, Channel channel) {
+        // nanoTime 而非 currentTimeMillis：后者在 Windows 上精度约 15.6ms，
+        // 本阶段只有一次 Redis EVAL，真实耗时在 1ms 量级，用毫秒钟表量不出来。
+        long startNanos = System.currentTimeMillis();
         DefaultMessageInfo message = (DefaultMessageInfo) obj;
-        log.info("message:" + new Gson().toJson(message));
-        MessageSeqAllocator.SeqResult seqResult = messageSeqAllocator.allocate(message.getChatId(), message.getId().toHexString());
-        if (seqResult.duplicate())
-        {
-            this.config.getLinkSender().send(EventType.ACK,channel,message.getSeq());
-            return;
-        }
-        message.setSeq((int) seqResult.seq());
+        List<Channel> channels = this.config.getSessionManager().getChannel(message.getSndId().toHexString())
+                .stream().filter(Channel::isActive).collect(Collectors.toList());
+        Channel ch = channels.get(0);
+        // 单线程分配 seq
+        MessageSeqAllocator.SeqResult seqResult = messageSeqAllocator.allocate(
+            message.getChatId(),
+            message.getId().toHexString()
+        );
+        log.info("第一阶段耗时: {}ms, seq={}", (System.currentTimeMillis() - startNanos), message.getSeq());
 
-        this.workerPool.submit(() -> processHeavy(message,channel));
+
+        long stage2Micros = System.currentTimeMillis();
+        int seq = seqResult.duplicate() ? (int) this.messageSeqAllocator.getMessageSeq(
+                message.getChatId(),
+                message.getId().toHexString()
+        ) : (int) seqResult.seq();
+        message.setSeq(seq);
+        log.info("第二阶段耗时: {}ms, seq={}", (System.currentTimeMillis()-stage2Micros), message.getSeq());
+
+        submitHeavy(message, ch);
     }
 
 
+    private void submitHeavy(DefaultMessageInfo message, Channel ch) {
 
-    private void processHeavy(DefaultMessageInfo message,  Channel channel) {
-        // 引用校验：回查原消息、校验可引用性、用服务端快照覆盖客户端传值，防伪造。入库前完成。
-        sanitizeQuote(message);
-        LinkAck linkAck = new LinkAck(message.getId().toHexString(),message.getChatId(),message.getSeq());
         try {
+            this.workerPool.submit(() -> {
+                processHeavy(message, ch);
+            });
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            // 有了上面的限流，走到这里说明是全局性过载而非单会话洪水
+            log.error("IM线程池过载，丢弃消息待客户端重发: msgId={}, chatId={}",
+                    message.getId(),message.getChatId());
+            cleanupDedupKey(message.getChatId(), message.getId().toHexString());
+        }
+    }
+
+
+    public void processHeavy(DefaultMessageInfo message, Channel channel) {
+        // 与 handler 的第一阶段统一用 nanoTime + 微秒，两段口径一致才能对比。
+        long start = System.currentTimeMillis();
+        sanitizeQuote(message);
+        long afterSanitize = System.currentTimeMillis();
+
+        try{
             this.insert(message);
-        } catch (org.springframework.dao.DuplicateKeyException e) {
-            // Redis 去重漏网的重发:DB 已有,捞出已存在那条,回 ACK 即可,不再转发
-            this.config.getLinkSender().send(EventType.ACK, channel, linkAck);
+        }catch (DuplicateKeyException e){
+            log.error("消息入库ID重复 -> {}",message.getId().toHexString());
             return;
         }
 
-        Query eq = eq(
-                where(col(ChatSession::getChatId)).is(message.getChatId())
-                        .and(col(ChatSession::getLastMsgSeq)).lt(message.getSeq())
-        );
+        long afterPush = System.currentTimeMillis();
+        this.messageProcessor.processor(message, channel);
+        long afterPublish = System.currentTimeMillis();
 
-        Update update = update()
-                .set(col(ChatSession::getLastMsgSummary), MessageType.summaryOf(message.getType(), message.getBaseData()))
-                .set(col(ChatSession::getLastMsgType), message.getType())
-                .set(col(ChatSession::getLastMsgTime), now())
-                .set(col(ChatSession::getLastMsgSeq), message.getSeq());
-        this.getMongoTemplate().updateFirst(eq, update,ChatSession.class);
+        this.config.getLinkSender().send(EventType.ACK, channel, new LinkAck(
+                message.getId().toHexString(),
+                message.getChatId(),
+                message.getSeq()
+        ));
 
-        this.config.getLinkSender().send(EventType.ACK,channel,linkAck);
-        this.messageProcessor.processor(message,channel);
+
+        this.sessionRepository.updateSession(message);
+
+        long end = System.currentTimeMillis();
+
+        log.info("耗时分解 - sanitize:{}ms, push:{}ms, mqPublish:{}ms, ack:{}ms, 总计:{}ms",
+                (afterSanitize - start) ,
+                (afterPush - afterSanitize) ,
+                (afterPublish - afterPush) ,
+                (end - afterPublish) ,
+                (end - start) );
     }
 
 
@@ -131,5 +175,16 @@ public class LinkDefaultMessageEventHandler extends BasePlatFormMongoService<Def
             return;
         }
         message.setQuote(QuoteRef.of(source, message.getBaseData()));
+    }
+
+    /**
+     * 清除 Redis 去重标记，允许客户端重试
+     */
+    private void cleanupDedupKey(String chatId, String msgId) {
+        try {
+            this.messageSeqAllocator.releaseDedup(chatId, msgId);
+        } catch (Exception e) {
+            log.error("清除去重标记失败: chatId={}, msgId={}", chatId, msgId, e);
+        }
     }
 }

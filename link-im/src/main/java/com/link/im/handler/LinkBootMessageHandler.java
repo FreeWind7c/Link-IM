@@ -5,11 +5,13 @@ import com.google.gson.Gson;
 import com.link.common.core.event.EventType;
 import com.link.common.core.model.ack.LinkAck;
 import com.link.common.redis.RedisKeys;
+
 import com.link.core.config.LinkCoreConfig;
 import com.link.core.event.handler.EventHandler;
 import com.link.core.util.seq.MessageSeqAllocator;
 import com.link.im.dto.ai.AIBotMessageDTO;
-import com.link.im.dto.ai.AIUserQuestion;
+import com.link.im.dto.ai.AIUserQuestionDTO;
+import com.link.im.entity.base.BaseBootMessage;
 import com.link.im.entity.chat.ChatSession;
 import com.link.im.entity.data.boot.BotAnswerData;
 import com.link.im.entity.data.boot.BotQuestionData;
@@ -17,6 +19,7 @@ import com.link.im.entity.message.AIBotMessage;
 import com.link.im.entity.message.type.MessageType;
 import com.link.im.mongo.BasePlatFormMongoService;
 import com.link.im.util.HttpClientUtil;
+import com.link.im.vo.AIBotMessageVO;
 import io.netty.channel.Channel;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
@@ -44,6 +47,8 @@ public class LinkBootMessageHandler extends BasePlatFormMongoService<AIBotMessag
     @Autowired
     private MessageSeqAllocator messageSeqAllocator;
 
+
+
     @Override
     public EventType event() {
         return EventType.BOT_MESSAGE;
@@ -56,45 +61,94 @@ public class LinkBootMessageHandler extends BasePlatFormMongoService<AIBotMessag
 
     @Override
     public void handler(Object obj, Channel channel) {
-       try{
-           AIBotMessageDTO dto = (AIBotMessageDTO) obj;
-           print("dto: " , dto);
-           MessageSeqAllocator.SeqResult seqResult = messageSeqAllocator.allocate(dto.getChatId(), dto.getId());
+        AIBotMessageDTO dto = (AIBotMessageDTO) obj;
+        printf("boot data:" , dto);
+        try {
+            if (handleDuplicateMessage(dto, channel)) {
+                return;
+            }
 
-           if (seqResult.duplicate())
-           {
-               this.config.getLinkSender().send(EventType.ACK,channel,dto.getSeq());
-               return;
-           }
-           dto.setSeq((int) seqResult.seq());
+            allocateSeqAndPersistQuestion(dto);
+            sendAck(channel, dto);
+            invokeBot(channel, buildUserQuestion(dto), dto);
 
-           BotQuestionData questionData = (BotQuestionData) dto.getData();
-           print("question:" , new Gson().toJson(questionData));
-           this.insert(new AIBotMessage().converterMessage(dto));
-           redisTemplate.opsForList().rightPush(RedisKeys.BOOT_MESSAGE + dto.getSndId(),dto);
-           redisTemplate.opsForList().trim(RedisKeys.BOOT_MESSAGE + dto.getSndId(),-100,-1);
-           updateSession(dto,questionData.getQuestion());
-
-           this.config.getLinkSender().send(EventType.ACK,channel,new LinkAck(dto.getId(),dto.getChatId(),dto.getSeq()));
-
-           // TODO 调用AI大模型
-           AIUserQuestion question = new AIUserQuestion();
-           question.setData(dto.getData());
-           question.setUserId(dto.getSndId());
-           question.setUserName("小明");
-
-           invokeBot(channel, question, dto);
-
-       }catch (Exception e){
-           e.printStackTrace();
-       }
+        } catch (Exception e) {
+            log.error("Bot message handler error, chatId: {}, userId: {}", dto.getChatId(), dto.getSndId(), e);
+            handleBotError(channel, dto);
+        }
     }
 
-    private void invokeBot(Channel channel, AIUserQuestion question, AIBotMessageDTO dto) {
+    private boolean handleDuplicateMessage(AIBotMessageDTO dto, Channel channel) {
+        MessageSeqAllocator.SeqResult seqResult = messageSeqAllocator.allocate(dto.getChatId(), dto.getId());
+        if (seqResult.duplicate()) {
+            this.config.getLinkSender().send(EventType.ACK, channel, dto.getSeq());
+            return true;
+        }
+        dto.setSeq((int) seqResult.seq());
+        return false;
+    }
+
+    private void allocateSeqAndPersistQuestion(AIBotMessageDTO dto) {
+        BotQuestionData questionData = (BotQuestionData) dto.getData();
+        persistMessage(dto, AIBotMessage.converterMessage(dto, 1));
+        updateSession(dto, questionData.getQuestion());
+    }
+
+    private AIUserQuestionDTO buildUserQuestion(AIBotMessageDTO dto) {
+        AIUserQuestionDTO question = new AIUserQuestionDTO();
+        question.setData(dto.getData());
+        question.setUserId(dto.getSndId());
+        question.setUserName(dto.getSndId());
+        return question;
+    }
+
+    private void sendAck(Channel channel, AIBotMessageDTO dto) {
+        this.config.getLinkSender().send(EventType.ACK, channel, new LinkAck(dto.getId(), dto.getChatId(), dto.getSeq()));
+    }
+
+    private void handleBotError(Channel channel, AIBotMessageDTO dto) {
+        BotAnswerData errorData = new BotAnswerData().setAnswer("请求频繁，请稍后重试!");
+        AIBotMessageVO errorAnswer = buildBotAnswer(dto, errorData);
+
+        MessageSeqAllocator.SeqResult seqResult = messageSeqAllocator.allocate(dto.getChatId(), errorAnswer.getId());
+        errorAnswer.setSeq((int) seqResult.seq());
+
+        persistAnswer(errorAnswer);
+        updateSession(errorAnswer, errorData.getAnswer());
+
+        this.config.getLinkSender().send(EventType.BOT_MESSAGE, channel, errorAnswer);
+    }
+
+    private void invokeBot(Channel channel, AIUserQuestionDTO question, AIBotMessageDTO dto) {
         String body = HttpClientUtil.postJson(new Gson().toJson(question));
         JSONObject json = JSONObject.parseObject(body);
         BotAnswerData data = new BotAnswerData().setAnswer(json.getString("answer"));
-        AIBotMessageDTO answer = new AIBotMessageDTO()
+
+        AIBotMessageVO answer = buildBotAnswer(dto, data);
+        MessageSeqAllocator.SeqResult seqResult = messageSeqAllocator.allocate(dto.getChatId(), answer.getId());
+        answer.setSeq((int) seqResult.seq());
+
+        persistAnswer(answer);
+        updateSession(answer, data.getAnswer());
+
+        this.config.getLinkSender().send(EventType.BOT_MESSAGE, channel, answer);
+        printf("AI回答：", answer);
+    }
+
+    private void persistMessage(AIBotMessageDTO dto, AIBotMessage message) {
+        this.insert(message);
+        redisTemplate.opsForList().rightPush(RedisKeys.BOOT_MESSAGE + dto.getSndId(), dto);
+        redisTemplate.opsForList().trim(RedisKeys.BOOT_MESSAGE + dto.getSndId(), -100, -1);
+    }
+
+    private void persistAnswer(AIBotMessageVO answer) {
+        this.insert(AIBotMessage.converterMessage(answer, 2));
+        redisTemplate.opsForList().rightPush(RedisKeys.BOOT_MESSAGE + answer.getRcvId(), answer);
+        redisTemplate.opsForList().trim(RedisKeys.BOOT_MESSAGE + answer.getRcvId(), -100, -1);
+    }
+
+    private AIBotMessageVO buildBotAnswer(AIBotMessageDTO dto, BotAnswerData data) {
+        return (AIBotMessageVO) new AIBotMessageVO()
                 .setId(new ObjectId().toHexString())
                 .setSndId(dto.getRcvId())
                 .setSenderType(2)
@@ -102,21 +156,9 @@ public class LinkBootMessageHandler extends BasePlatFormMongoService<AIBotMessag
                 .setChatId(dto.getChatId())
                 .setData(data)
                 .setTimestamp(now());
-
-        MessageSeqAllocator.SeqResult seqResult = messageSeqAllocator.allocate(dto.getChatId(), dto.getId());
-        answer.setSeq((int) seqResult.seq());
-
-        this.insert(new AIBotMessage().converterMessage(answer));
-        redisTemplate.opsForList().rightPush(RedisKeys.BOOT_MESSAGE + dto.getSndId(),dto);
-        redisTemplate.opsForList().trim(RedisKeys.BOOT_MESSAGE + dto.getSndId(),-100,-1);
-
-        updateSession(answer, data.getAnswer());
-
-        this.config.getLinkSender().send(EventType.BOT_MESSAGE, channel,answer);
-        print("AI回答：" , answer);
     }
 
-    private void updateSession(AIBotMessageDTO dto, String summary) {
+    private void updateSession(BaseBootMessage dto, String summary) {
 
         Query eq = eq(
                 where(col(ChatSession::getChatId)).is(dto.getChatId())

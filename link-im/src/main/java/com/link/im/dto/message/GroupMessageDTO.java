@@ -1,6 +1,6 @@
 package com.link.im.dto.message;
 
-import com.link.im.entity.base.BaseMessageDTO;
+import com.link.im.dto.base.BaseMessageDTO;
 import com.link.im.entity.message.GroupMessageInfo;
 import lombok.Data;
 import lombok.EqualsAndHashCode;

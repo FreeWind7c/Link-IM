@@ -11,6 +11,8 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class LinkRtcCall {
 
+    private String roomId;
+
     private String sndId;
 
     private String rcvId;

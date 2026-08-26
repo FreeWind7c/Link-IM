@@ -23,7 +23,7 @@ public class HttpClientUtil {
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
 
     /** 读取响应超时 */
-    private static final Duration READ_TIMEOUT = Duration.ofSeconds(30);
+    private static final Duration READ_TIMEOUT = Duration.ofSeconds(120);
 
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String JSON_TYPE = "application/json;charset=UTF-8";

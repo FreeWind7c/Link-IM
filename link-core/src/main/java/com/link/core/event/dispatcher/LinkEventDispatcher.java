@@ -51,21 +51,44 @@ public class LinkEventDispatcher {
         }
         EventHandler eventHandler = this.factory.getEventHandler(eventType);
         if (eventHandler == null)
-            throw new RuntimeException("未知事件:"+ eventType.getAction());
+            return;
+//            throw new RuntimeException("未知事件:"+ eventType.getAction());
         // ByteBuf → byte[]：序列化器只认字节数组（已与 netty 解耦），这里在接入层完成读取
         byte[] body = new byte[buf.readableBytes()];
         buf.readBytes(body);
-        String jsonStr = new String(body, java.nio.charset.StandardCharsets.UTF_8);
         Object data = this.config.getLinkSerializer().deserialize(body, eventHandler.bodyClass());
+
+        // 控制面事件（心跳 / ACK）：纯内存、微秒级，就地在当前 eventLoop 上执行完，不进任何线程池。
+        // 走 IMExecutor 的话，消息洪水灌满这条全用户共享的 FIFO 后，心跳/ACK 排在队尾迟迟跑不到，
+        // 而 IdleStateHandler 在没被阻塞的 eventLoop 上准点触发，读到过期的 lastHeartbeatTime，
+        // 就把正在正常发心跳的在线用户判成掉线踢掉（见 EventHandler#inlineOnEventLoop）。
+        if (eventHandler.inlineOnEventLoop()) {
+            try {
+                eventHandler.handler(data, channel);
+            } catch (Throwable t) {
+                // 单帧处理失败不能顺着 pipeline 冒到 exceptionCaught 把连接关掉
+                log.error("内联处理 {} 事件失败, channel={}", eventType, channel.id(), t);
+            }
+            return;
+        }
+
         String partitionKey = eventHandler.partitionKey(data);
         if (partitionKey != null) {
-            this.orderedExecutor.submit(partitionKey, () -> {
+            boolean accepted = this.orderedExecutor.submit(partitionKey, () -> {
                 eventHandler.handler(data, channel);
             });
+            if (!accepted) {
+                log.error("分区积压已满，丢弃 {} 事件待客户端重发, key={}, channel={}",
+                        eventType, partitionKey, channel.id());
+            }
         } else {
-            workerPool.submit(() -> {
-                eventHandler.handler(data, channel);
-            });
+            try {
+                workerPool.submit(() -> {
+                    eventHandler.handler(data, channel);
+                });
+            } catch (java.util.concurrent.RejectedExecutionException e) {
+                log.error("IM线程池过载，丢弃 {} 事件, channel={}", eventType, channel.id());
+            }
         }
     }
 }

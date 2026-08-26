@@ -1,5 +1,6 @@
 package com.link.core.handler.tcp;
 
+import com.google.gson.Gson;
 import com.link.core.codec.LinkPackDataEncoder;
 import com.link.common.core.model.data.PackData;
 import io.netty.buffer.ByteBuf;

@@ -15,7 +15,7 @@ import java.lang.reflect.Type;
 /**
  * BaseBotData 的多态反序列化器。
  *
- * <p>问题背景：AIBotMessageDTO.data / AIUserQuestion.data 的声明类型都是 BaseBotData（父类），
+ * <p>问题背景：AIBotMessageDTO.data / AIUserQuestionDTO.data 的声明类型都是 BaseBotData（父类），
  * Gson 按声明类型还原，会得到一个空的 BaseBotData，导致 BotQuestionData.question 等子类字段
  * 全部丢失，调用方强转时抛 ClassCastException。
  *

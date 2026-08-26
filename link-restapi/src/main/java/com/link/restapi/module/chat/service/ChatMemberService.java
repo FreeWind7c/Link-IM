@@ -3,7 +3,7 @@ package com.link.restapi.module.chat.service;
 
 import com.link.im.entity.chat.ChatSessionMember;
 import com.link.im.mongo.BasePlatFormMongoService;
-import com.link.im.util.ApiResult;
+import com.link.restapi.utils.ApiResult;
 import com.link.restapi.module.chat.model.dto.LinkReportSessionDto;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;

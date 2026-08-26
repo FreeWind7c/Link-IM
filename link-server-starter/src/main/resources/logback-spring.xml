@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Netty 接入进程的日志配置。
+
+  为什么必须有这个文件：没有它时走 Spring Boot 默认的同步 ConsoleAppender，
+  而 ConsoleAppender 对 System.out 是加锁写出的。压测时 Netty worker
+  （CPU×2）+ 分区线程（CPU×2）+ IMExecutor（CPU×2~4）全在抢同一把锁，
+  这是全链路上唯一一个所有用户、所有线程无差别共享的串行资源——
+  单次 log.info 走到几十毫秒，热路径耗时统计也会被它污染。
+
+  这里在 CONSOLE 前面挂一层 AsyncAppender：业务线程只把事件塞进环形队列就返回，
+  格式化与写出交给单独的 logback appender 线程。
+-->
+<configuration>
+
+    <!-- CONSOLE_LOG_PATTERN / CHARSET / THRESHOLD 等属性与转换器 -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <!-- 复用 Boot 自带的 CONSOLE appender 定义，保持输出格式与默认一致 -->
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <appender name="ASYNC_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
+        <!-- 队列给足：压测瞬时峰值不至于立刻打满 -->
+        <queueSize>8192</queueSize>
+        <!-- 0 = 关掉"队列剩余不足 20% 就丢弃 INFO 及以下"的默认行为，日志尽量留全 -->
+        <discardingThreshold>0</discardingThreshold>
+        <!-- 队列真满时丢弃事件而不是阻塞业务线程：日志绝不能反压消息链路 -->
+        <neverBlock>true</neverBlock>
+        <!-- 取调用方栈帧要做一次 stack walk，热路径上很贵，保持关闭 -->
+        <includeCallerData>false</includeCallerData>
+        <appender-ref ref="CONSOLE"/>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="ASYNC_CONSOLE"/>
+    </root>
+
+</configuration>

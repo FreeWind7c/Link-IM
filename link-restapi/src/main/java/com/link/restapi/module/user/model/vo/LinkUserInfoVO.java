@@ -27,7 +27,7 @@ public class LinkUserInfoVO {
     private long loginTime;
 
     /** 由实体组装展示 VO。映射放在 api 层，使 link-im 实体不反向依赖 VO。 */
-    public static LinkUserInfoVO from(UserInfo user) {
+    public static LinkUserInfoVO fromVo(UserInfo user) {
         return new LinkUserInfoVO().setId(user.getId().toString()).setUserNo(user.getUserNo())
                 .setNickname(user.getNickname()).setAvatar(user.getAvatar()).setAccount(user.getAccount())
                 .setRegisterTime(user.getRegisterTime()).setLoginTime(user.getLoginTime());

@@ -80,6 +80,7 @@ public class BaseMessage {
     }
 
 
+
     /**
      * 设置 data 对象，同时更新 data 字符串和 baseData 缓存。
      */

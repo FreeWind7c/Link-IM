@@ -2,16 +2,14 @@ package com.link.restapi.module.redpack.service;
 
 import com.google.gson.Gson;
 import com.link.common.core.event.EventType;
-import com.link.common.core.model.redpack.LinkRedPacketUpdate;
 import com.link.common.redis.RedisKeys;
-import com.link.common.util.id.LinkID;
 import com.link.core.util.seq.MessageSeqAllocator;
-import com.link.im.constants.redpack.RedPacketStatusKeys;
-import com.link.im.constants.wallet.WalletFlowBizTypeKeys;
-import com.link.im.constants.wallet.WalletInOutKeys;
+import com.link.common.constants.redpack.RedPacketStatusKeys;
+import com.link.common.constants.wallet.WalletFlowBizTypeKeys;
+import com.link.common.constants.wallet.WalletInOutKeys;
 import com.link.im.entity.chat.ChatSession;
 import com.link.im.entity.chat.ChatSessionMember;
-import com.link.im.entity.data.RedPackData;
+import com.link.im.entity.data.RedPacketData;
 import com.link.im.entity.data.system.SystemGrabRedPacketData;
 import com.link.im.entity.base.BaseMessage;
 import com.link.im.entity.message.DefaultMessageInfo;
@@ -23,11 +21,12 @@ import com.link.im.entity.redpack.RedPacketRecord;
 import com.link.im.entity.user.UserInfo;
 import com.link.im.entity.wallet.WalletFlow;
 import com.link.im.entity.wallet.WalletInfo;
-import com.link.im.enums.gloabl.GlobalCode;
-import com.link.im.enums.redpack.RedPacketApiCode;
+import com.link.restapi.enums.gloabl.GlobalCode;
+import com.link.restapi.enums.redpack.RedPacketApiCode;
 import com.link.im.mongo.BasePlatFormMongoService;
 import com.link.im.service.LinkRedisService;
-import com.link.im.util.ApiResult;
+import com.link.restapi.utils.ApiResult;
+import com.link.im.vo.base.BaseMessageVO;
 import com.link.restapi.module.redpack.exception.RedPackBizException;
 import com.link.restapi.module.redpack.model.dto.LinkGetRedPacketDTO;
 import com.link.restapi.module.redpack.model.dto.LinkGrabPacketDto;
@@ -48,6 +47,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
@@ -243,7 +243,7 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
      *
      * <p>public 是必须的——{@code @Transactional} 走 CGLIB 代理，包级/私有方法拦不到。
      */
-//    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class)
     public SendOutcome doSend(LinkSendPacketDto dto, String packetId, String rcvId,
                               String messageId, long seq, long now) {
 
@@ -327,7 +327,7 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
                                       String messageId, long now) {
         RedPacket packet = new RedPacket()
                 .setBizDetailId(dto.getBizDetailId())
-                .setMessageId(messageId)
+                .setMessageId(new ObjectId(messageId))
                 .setSndId(new ObjectId(dto.getSndId()))
                 .setRcvId(new ObjectId(dto.getRcvId()))
                 .setChatId(dto.getChatId())
@@ -347,9 +347,9 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
     private BaseMessage buildRedPacketMessage(LinkSendPacketDto dto, String packetId, String rcvId,
                                               String messageId, long seq, long now) {
         // 消息的 data 只存创建时的静态快照，不含 status 和 claimantIds
-        RedPackData data = new RedPackData()
+        RedPacketData data = new RedPacketData()
                 .setId(packetId)
-                .setAmount(dto.getAmount())
+                .setTotalAmount(dto.getAmount())
                 .setBlessing(dto.getBlessing())
                 .setTotalCount(dto.getCount());
 
@@ -581,7 +581,7 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
      * <p>正因为这五件事在同一个事务里，才不存在「已抢到但没到账」的中间态，
      * 所以 {@code RedPacketRecord} 不再需要 status/dutTime 两阶段字段，也不需要补偿扫描。
      */
-//    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class)
     public GrabOutcome settleGrab(RedPacket packet, RedPacketItem item, LinkGrabPacketDto dto,
                                   String sysMessageId, long sysSeq) {
         long now = now();
@@ -635,7 +635,7 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
 
         // ⑥ 消息不再更新：status 和 claimantIds 已从消息的 data 中移除
         //    前端通过 UPDATE_RED_PACKET 事件实时同步状态，离线场景调用详情接口查询
-        String targetMessageId = packet.getMessageId() != null ? packet.getMessageId() : dto.getMessageId();
+        String targetMessageId = packet.getMessageId() != null ? packet.getMessageId().toHexString() : dto.getMessageId();
 
         // ⑦ 单聊的系统消息
         BaseMessage sysMessage = null;
@@ -687,15 +687,17 @@ public class RedPackService extends BasePlatFormMongoService<RedPacket> {
         if (CollectionUtils.isEmpty(targets))
             return;
 
-        LinkRedPacketUpdate event = new LinkRedPacketUpdate()
-                .setChatId(packet.getChatId())
-                .setMessageId(outcome.packetMessageId())
-                .setPacketId(packet.getId().toHexString())
-                .setStatus(outcome.packetStatus())
-                .setClaimantId(dto.getUserId())
-                .setRemainCount(outcome.remainCount())
-                .setRemainAmount(outcome.remainAmount());
-        this.pushPublisher.push(EventType.UPDATE_RED_PACKET, targets, event);
+
+        packet.setStatus(outcome.packetStatus());
+        BaseMessageVO vo = new BaseMessageVO();
+        RedPacketData data = RedPacketData.toData(packet);
+        if (packet.getBizType() == 1)
+            vo = this.getMongoTemplate().findById(packet.getMessageId(), DefaultMessageInfo.class).toVo();
+        else
+            vo = this.getMongoTemplate().findById(packet.getMessageId(), GroupMessageInfo.class).toVo();
+        vo.setData(data.toJson()).setBaseData(data);
+
+        this.pushPublisher.push(EventType.UPDATE_MESSAGE, targets, vo);
 
         if (outcome.sysMessage() != null)
             this.pushPublisher.push(EventType.DEFAULT_MESSAGE, targets, outcome.sysMessage());

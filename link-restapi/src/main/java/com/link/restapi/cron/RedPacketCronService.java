@@ -1,14 +1,18 @@
 package com.link.restapi.cron;
 
+import com.google.gson.Gson;
 import com.link.common.core.event.EventType;
-import com.link.common.core.model.redpack.LinkRedPacketUpdate;
 import com.link.common.redis.RedisKeys;
-import com.link.im.constants.redpack.RedPacketStatusKeys;
-import com.link.im.constants.wallet.WalletFlowBizTypeKeys;
-import com.link.im.constants.wallet.WalletInOutKeys;
+import com.link.common.constants.redpack.RedPacketStatusKeys;
+import com.link.common.constants.wallet.WalletFlowBizTypeKeys;
+import com.link.common.constants.wallet.WalletInOutKeys;
+import com.link.im.entity.data.RedPacketData;
+import com.link.im.entity.message.DefaultMessageInfo;
+import com.link.im.entity.message.GroupMessageInfo;
 import com.link.im.entity.redpack.RedPacket;
 import com.link.im.entity.wallet.WalletFlow;
 import com.link.im.entity.wallet.WalletInfo;
+import com.link.im.vo.base.BaseMessageVO;
 import com.link.restapi.module.redpack.service.RedPackService;
 import com.link.restapi.push.RemotePushPublisher;
 import com.mongodb.client.result.UpdateResult;
@@ -24,6 +28,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
@@ -80,6 +85,7 @@ public class RedPacketCronService {
         List<RedPacket> packets = this.mongoTemplate.find(query, RedPacket.class);
         for (RedPacket packet : packets) {
             try {
+                log.info("过期红包:" + new Gson().toJson(packet));
                 RedPacket before = self.doExpire(packet, now);
                 if (before == null)
                     continue; // 没抢到翻转权（上一轮或另一个实例已处理），绝不重复退款
@@ -102,7 +108,7 @@ public class RedPacketCronService {
      *
      * @return 翻转<b>之前</b>的红包文档；返回 null 表示没抢到翻转权，本次什么都没做
      */
-//    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class)
     public RedPacket doExpire(RedPacket packet, long now) {
         Query cas = new Query(Criteria.where("_id").is(packet.getId())
                 .and("status").is(RedPacketStatusKeys.IN_PROGRESS));
@@ -149,15 +155,14 @@ public class RedPacketCronService {
         if (CollectionUtils.isEmpty(targets))
             return;
 
-        LinkRedPacketUpdate event = new LinkRedPacketUpdate()
-                .setChatId(before.getChatId())
-                .setMessageId(before.getMessageId())
-                .setPacketId(before.getId().toHexString())
-                .setStatus(RedPacketStatusKeys.REFUND)
-                // 过期退款没有领取人
-                .setClaimantId(null)
-                .setRemainCount(before.getRemainCount())
-                .setRemainAmount(before.getRemainAmount());
-        this.pushPublisher.push(EventType.UPDATE_RED_PACKET, targets, event);
+        before.setStatus(RedPacketStatusKeys.REFUND);
+        BaseMessageVO vo = new BaseMessageVO();
+        RedPacketData data = RedPacketData.toData(before);
+        if (before.getBizType() == 1)
+            vo = this.mongoTemplate.findById(before.getMessageId(), DefaultMessageInfo.class).toVo();
+        else
+            vo = this.mongoTemplate.findById(before.getMessageId(), GroupMessageInfo.class).toVo();
+        vo.setData(data.toJson()).setBaseData(data);
+        this.pushPublisher.push(EventType.UPDATE_MESSAGE, targets, vo);
     }
 }

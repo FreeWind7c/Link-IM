@@ -71,6 +71,24 @@ public class LinkCoreConfig {
 
     private int queueCapacity = 500;
 
+    /**
+     * 单个会话允许的在飞重活数上限。
+     *
+     * <p>共享线程池是一条全用户公用的 FIFO 队列，没有这个限制时压测会话能把队列灌满，
+     * 后到的其他用户被连带丢弃或拖慢。这个值让洪水会话先撞上限，队列给其他会话留出余量。
+     * 调小 = 隔离性更强、单会话峰值吞吐更低；调大 = 反之。
+     */
+    private int maxInflightPerChat = 16;
+
+    /**
+     * 单个分区的排队上限。
+     *
+     * <p>原先分区用无界队列，压测多少消息就堆多少，没有任何反压回到客户端——
+     * 内存一路涨，且积压会全量转成对下游（Mongo/MQ）的压力。有界之后超出的直接拒，
+     * 客户端靠 ACK 超时重发，压力挡在入口而不是传导到下游。
+     */
+    private int partitionQueueCapacity = 2000;
+
     private int keepAlive = 60;
 
     private String threadNamePrefix = "link-im-worker";

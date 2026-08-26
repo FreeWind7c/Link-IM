@@ -1,5 +1,6 @@
 package com.link.im.dto.ai;
 
+import com.link.im.entity.base.BaseBootMessage;
 import com.link.im.entity.base.BaseBotData;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -11,24 +12,9 @@ import org.springframework.data.mongodb.core.mapping.Field;
  */
 @Data
 @Accessors(chain = true)
-public class AIBotMessageDTO {
+public class AIBotMessageDTO  extends BaseBootMessage {
 
 
-    private String id;
 
-    private int seq;
-
-    // 1用户 2AI
-    private int senderType;
-
-    private String chatId;
-
-    private String sndId;
-
-    private String rcvId;
-
-    private BaseBotData data;
-
-    private long timestamp;
 
 }

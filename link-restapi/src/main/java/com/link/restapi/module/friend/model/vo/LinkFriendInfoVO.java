@@ -14,7 +14,11 @@ import lombok.experimental.Accessors;
 public class LinkFriendInfoVO {
 
 
+
+
     private String userId;
+
+    private String userNo;
 
     private String nickname;
 
@@ -37,8 +41,9 @@ public class LinkFriendInfoVO {
     private boolean silence;
 
     /** 由好友关系实体 + 对端用户信息组装展示 VO。 */
-    public static LinkFriendInfoVO from(FriendInfo friendInfo, UserInfo user) {
+    public static LinkFriendInfoVO fromVo(FriendInfo friendInfo, UserInfo user) {
         return new LinkFriendInfoVO().setUserId(friendInfo.getFriendId().toHexString())
+                .setUserNo(user.getUserNo())
                 .setNickname(user.getNickname()).setAvatar(user.getAvatar())
                 .setRemark(friendInfo.getRemark()).setStatus(friendInfo.getStatus())
                 .setSource(friendInfo.getSource()).setShowTop(friendInfo.isShowTop())

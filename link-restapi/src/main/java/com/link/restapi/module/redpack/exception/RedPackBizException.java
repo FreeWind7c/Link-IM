@@ -1,6 +1,6 @@
 package com.link.restapi.module.redpack.exception;
 
-import com.link.im.util.ApiResult;
+import com.link.restapi.utils.ApiResult;
 
 /**
  * 红包业务失败信号。

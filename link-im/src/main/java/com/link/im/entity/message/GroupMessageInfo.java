@@ -6,12 +6,15 @@ import com.link.im.entity.base.BaseMessage;
 import com.link.im.entity.data.NoticeData;
 import com.link.im.entity.message.quote.QuoteRef;
 import com.link.im.entity.message.type.MessageType;
+import com.link.im.vo.DefaultMessageVO;
+import com.link.im.vo.GroupMessageVO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.bson.types.ObjectId;
+import org.springframework.beans.BeanUtils;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
@@ -40,6 +43,15 @@ public class GroupMessageInfo extends BaseMessage {
     public static GroupMessageInfo create(String s, long seq, MessageType noticeMessage, String chatId, String inviterUserId, String id, int i, NoticeData noticeData, long now) {
         GroupMessageInfo messageInfo = new GroupMessageInfo();
         return messageInfo;
+    }
+
+    public GroupMessageVO toVo() {
+        GroupMessageVO vo = new GroupMessageVO();
+        BeanUtils.copyProperties(this,vo);
+        vo.setId(this.getId().toHexString());
+        vo.setSndId(this.getSndId().toHexString());
+        vo.setRcvId(this.getRcvId().toHexString());
+        return vo;
     }
 
 }

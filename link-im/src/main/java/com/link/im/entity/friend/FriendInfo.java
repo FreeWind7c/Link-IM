@@ -1,6 +1,6 @@
 package com.link.im.entity.friend;
 
-import com.link.im.constants.friend.LinkFriendStatus;
+import com.link.common.constants.friend.LinkFriendStatus;
 import com.link.im.entity.base.BaseEntity;
 import lombok.Data;
 import lombok.experimental.Accessors;

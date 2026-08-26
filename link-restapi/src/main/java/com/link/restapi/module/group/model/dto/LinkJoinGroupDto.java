@@ -1,6 +1,5 @@
 package com.link.restapi.module.group.model.dto;
 
-import com.link.im.util.ApiResult;
 import lombok.Data;
 import lombok.experimental.Accessors;
 

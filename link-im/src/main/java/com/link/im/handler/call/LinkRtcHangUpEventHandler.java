@@ -39,32 +39,6 @@ public class LinkRtcHangUpEventHandler extends BasePlatFormMongoService<DefaultM
 
     @Override
     public void handler(LinkRtcCall call,Channel channel) {
-        List<Channel> rcvChannels = this.config.getSessionManager().getChannel(call.getRcvId());
-        List<Channel> sndChannels = this.config.getSessionManager().getChannel(call.getSndId());
-        DefaultMessageInfo defaultMessageInfo = this.getMongoTemplate().findById(eq(where(col(DefaultMessageInfo::getId)).is(new ObjectId(call.getMessageId()))), DefaultMessageInfo.class);
-        if (defaultMessageInfo == null)
-            return;
-
-        CallData data = (CallData) defaultMessageInfo.getBaseData();
-        data.setStatus(2).setEndTime(now());
-        Query eq = eq(
-                where(col(DefaultMessageInfo::getId)).is(call.getMessageId())
-        );
-        Update update = update()
-                .set("data", data.toJson());
-        FindAndModifyOptions options = options();
-        options.returnNew(true);
-        options.upsert(false);
-        DefaultMessageInfo messageInfo = this.findAndModify(eq, update, options);
-
-        if (messageInfo == null)
-            return;
-        if (rcvChannels != null && !rcvChannels.isEmpty())
-        {
-            this.config.getLinkSender().send(EventType.RTC_CALL,rcvChannels,call);
-            this.config.getLinkSender().send(EventType.DEFAULT_MESSAGE,rcvChannels,messageInfo);
-        }
-
-        this.config.getLinkSender().send(EventType.DEFAULT_MESSAGE,sndChannels,messageInfo);
+        log.info("hang up:" + new Gson().toJson(call));
     }
 }

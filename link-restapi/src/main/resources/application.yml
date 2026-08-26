@@ -41,7 +41,7 @@ spring:
         big-decimal: decimal128
   # 推送发布端：HTTP 动作触发的在线推送发到 RabbitMQ，由持连的 Netty 进程消费下发。
   rabbitmq:
-    host: ${RABBITMQ_HOST:124.220.135.223}
+    host: ${RABBITMQ_HOST:42.193.160.18}
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:admin}
     password: ${RABBITMQ_PASSWORD:Rq9#mW2$xK7@nP4vL6#jT8!s}
@@ -57,5 +57,5 @@ spring:
     # 若进入副本集模式（带 replicaSet 参数），驱动会转去连内网地址，本地不可达 → Connect timed out。
     # 注意：1) 密码里的 # 转义为 %23  2) /im 是业务库，authSource=admin 是认证库，两者不同
     # 取舍：直连失去故障自动切换；且需保证连的是 PRIMARY 节点（27017），否则写操作/事务会失败。
-    uri: ${MONGO_URI:mongodb://admin:f3Kx%239mPqL2vNzR7wYcJ4sBt@124.220.135.223:27017/im?authSource=admin&directConnection=true&serverSelectionTimeoutMS=20000&connectTimeoutMS=20000}
+    uri: ${MONGO_URI:mongodb://admin:f3Kx%239mPqL2vNzR7wYcJ4sBt@42.193.160.18:27017/im?authSource=admin&directConnection=true&serverSelectionTimeoutMS=20000&connectTimeoutMS=20000}
 

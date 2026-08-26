@@ -1,13 +1,11 @@
 package com.link.consumer.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.link.im.constants.publisher.PublisherRouterKeys;
+import com.link.common.constants.publisher.PublisherRouterKeys;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
-import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -29,54 +27,61 @@ public class PushMqConfig {
 
 
     /**
-     * 创建 Exchange
+     * Exchange
      */
     @Bean
     public DirectExchange messageExchange() {
-        return new DirectExchange(PublisherRouterKeys.MESSAGE_EXCHANGE);
+        return new DirectExchange(
+                PublisherRouterKeys.MESSAGE_EXCHANGE
+        );
     }
 
-
-
-
+    /**
+     * 普通消息队列
+     */
     @Bean
-    public Queue messageStorageQueue() {
-        return new Queue(PublisherRouterKeys.DEFAULT_MESSAGE_STORAGE_QUEUE);
+    public Queue defaultMessageStorageQueue() {
+        return new Queue(
+                PublisherRouterKeys.DEFAULT_MESSAGE_STORAGE_QUEUE
+        );
     }
 
-
+    /**
+     * 普通消息 Binding
+     */
     @Bean
-    public Binding messageStorageBinding(
+    public Binding defaultMessageStorageBinding(
             DirectExchange messageExchange,
-            Queue messageStorageQueue) {
+            Queue defaultMessageStorageQueue) {
 
         return BindingBuilder
-                .bind(messageStorageQueue)
+                .bind(defaultMessageStorageQueue)
                 .to(messageExchange)
                 .with(PublisherRouterKeys.DEFAULT_MESSAGE_STORAGE_ROUTING_KEY);
     }
 
+    /**
+     * 群消息队列
+     */
     @Bean
-    public Queue messageStorageQueue1() {
-        return new Queue(PublisherRouterKeys.GROUP_MESSAGE_STORAGE_QUEUE);
+    public Queue groupMessageStorageQueue() {
+        return new Queue(
+                PublisherRouterKeys.GROUP_MESSAGE_STORAGE_QUEUE
+        );
     }
 
-
+    /**
+     * 群消息 Binding
+     */
     @Bean
-    public Binding messageStorageBinding1(
+    public Binding groupMessageStorageBinding(
             DirectExchange messageExchange,
-            Queue messageStorageQueue) {
+            Queue groupMessageStorageQueue) {
 
         return BindingBuilder
-                .bind(messageStorageQueue)
+                .bind(groupMessageStorageQueue)
                 .to(messageExchange)
                 .with(PublisherRouterKeys.GROUP_MESSAGE_STORAGE_ROUTING_KEY);
-    }
-
-    /** 拓扑声明器：把监听器上 @QueueBinding 声明的 exchange/queue/binding 自动在 broker 创建 */
-    @Bean
-    public RabbitAdmin pushRabbitAdmin(ConnectionFactory connectionFactory) {
-        return new RabbitAdmin(connectionFactory);
     }
 
     /**

@@ -4,6 +4,7 @@ package com.link.im.entity.message.type;
 import com.link.im.entity.data.*;
 import com.link.im.entity.base.BaseData;
 import com.link.im.entity.data.NoticeData;
+import com.link.im.entity.data.message.Mention;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -17,9 +18,11 @@ public enum MessageType {
     IMAGE_MESSAGE(1002, ImageData.class, "[图片]", true),
     VIDEO_MESSAGE(1003, VideoData.class, "[视频]", true),
     VOICE_MESSAGE(1004, VoiceData.class, "[语音]", false),
-    RED_PACK_MESSAGE(1005, RedPackData.class, "[红包]", false),
+    FILE_MESSAGE(1005, FileData.class, "[文件]", false),
     NOTICE_MESSAGE(1006, NoticeData.class, null, false),
-    RTC_CALL_MESSAGE(1007,CallData.class,null,false);
+
+    RED_PACK_MESSAGE(1007, RedPacketData.class, "[红包]", false),
+    RTC_CALL_MESSAGE(1008,CallData.class,null,false);
 
     private final int type;
 
@@ -143,15 +146,13 @@ public enum MessageType {
             }
             return "";
         }
-        if (mt == RTC_CALL_MESSAGE){
-            CallData call = (CallData) data;
-            if (call.getMediaType() == 0)
-                return "[语音通话]";
-            else if (call.getMediaType() == 1)
-                return "[视频通话]";
-            else
-                return "[位置消息类型]";
+        else if (mt == NOTICE_MESSAGE){
+            if (data instanceof NoticeData){
+                NoticeData noticeData = (NoticeData) data;
+                return noticeData.getText();
+            }
         }
+
         return mt.summaryLabel;
     }
 }

@@ -1,7 +1,8 @@
 package com.link.im.entity.data;
 
 import com.link.im.entity.base.BaseData;
-import lombok.AllArgsConstructor;
+import com.link.im.entity.message.type.MessageType;
+import com.link.im.provider.MessageTypeProvider;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -11,8 +12,17 @@ import lombok.experimental.Accessors;
  */
 @Data
 @Accessors(chain = true)
-public class NoticeData extends BaseData {
+public class NoticeData extends BaseData implements MessageTypeProvider {
+    private int type;
+
     private String chatId;
 
+    private String text;
+
     private NoticeData data;
+
+    @Override
+    public int getMessageType() {
+        return MessageType.NOTICE_MESSAGE.getType();
+    }
 }

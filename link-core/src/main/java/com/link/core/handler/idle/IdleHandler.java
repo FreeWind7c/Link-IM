@@ -10,6 +10,8 @@ import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.AttributeKey;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 
 /**
  * @Author: 无敌代码写手
@@ -20,6 +22,9 @@ import lombok.extern.slf4j.Slf4j;
 public class IdleHandler extends ChannelInboundHandlerAdapter {
 
     private final LinkCoreConfig config;
+
+    @Autowired
+    private RedisTemplate redisTemplate;
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {

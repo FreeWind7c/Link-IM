@@ -3,13 +3,14 @@ package com.link.restapi.module.chat.service;
 import com.link.common.util.id.ChatIdGenerator;
 import com.link.im.entity.chat.ChatSessionMember;
 import com.link.im.entity.group.GroupInfo;
-import com.link.im.enums.gloabl.GlobalCode;
+import com.link.restapi.enums.gloabl.GlobalCode;
 import com.link.im.mongo.BasePlatFormMongoService;
 import com.link.im.entity.chat.ChatSession;
 import com.link.im.entity.user.UserInfo;
-import com.link.im.util.ApiResult;
+import com.link.restapi.utils.ApiResult;
 import com.link.restapi.module.chat.model.dto.LinkCreateChatDto;
 import com.link.restapi.module.chat.model.dto.LinkPullChatDTO;
+import com.link.restapi.module.chat.model.dto.LinkQueryChatDTO;
 import com.link.restapi.module.chat.model.vo.LinkChatSessionVo;
 
 import org.bson.types.ObjectId;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -107,12 +109,12 @@ public class ChatSessionService extends BasePlatFormMongoService<ChatSession> {
                 GroupInfo group = groupInfoMap.get(member.getTargetId());
                 if (group == null)
                     continue;
-                vos.add(new LinkChatSessionVo().createGroupVo(session, member, group));
+                vos.add(LinkChatSessionVo.createGroupVo(session, member, group));
             } else {
                 UserInfo user = userInfoMap.get(member.getTargetId());
                 if (user == null)
                     continue;
-                vos.add(new LinkChatSessionVo().createSingleVo(session, member, user));
+                vos.add(LinkChatSessionVo.createSingleVo(session, member, user));
             }
         }
         return vos;
@@ -124,7 +126,8 @@ public class ChatSessionService extends BasePlatFormMongoService<ChatSession> {
 
         String chatId = ChatIdGenerator.nextId(dto.getUserId(), dto.getTargetId());
         ChatSession session = new ChatSession().createSingle(chatId);
-        ChatSessionMember member = new ChatSessionMember().createSingle(dto.getUserId(), dto.getTargetId(), chatId);
+        ChatSessionMember m1 = new ChatSessionMember().createSingle(dto.getUserId(), dto.getTargetId(), chatId);
+        ChatSessionMember m2 = new ChatSessionMember().createSingle(dto.getTargetId(),dto.getUserId() , chatId);
         Query eq = eq(
                 where(col(ChatSession::getChatId)).is(chatId)
         );
@@ -138,9 +141,27 @@ public class ChatSessionService extends BasePlatFormMongoService<ChatSession> {
                 .upsert(true)
                 .returnNew(true);
         this.findAndModify(eq,update,options);
-        this.getMongoTemplate().insert(member);
-        return ApiResult.success();
+        this.getMongoTemplate().insert(Arrays.asList(m1,m2),ChatSessionMember.class);
+        return ApiResult.success().setData(chatId);
     }
 
 
+    public ApiResult getChat(LinkQueryChatDTO dto) {
+        if (!stringValidator(dto.getUserId(),dto.getChatId()))
+            return ApiResult.error(GlobalCode.PARAMETER_VALIDATOR_ERROR);
+
+        ChatSession session = this.findOne(eq(where(col(ChatSession::getChatId)).is(dto.getChatId())));
+        ChatSessionMember sessionMember = this.getMongoTemplate().findOne(
+                eq(where(col(ChatSessionMember::getOwnerId)).is(new ObjectId(dto.getUserId()))
+                                .and(col(ChatSessionMember::getChatId)).is(dto.getChatId())),
+                ChatSessionMember.class
+        );
+        if (session.getType() == ChatSessionMember.TYPE_SINGLE) {
+            UserInfo user = this.getMongoTemplate().findById(sessionMember.getTargetId(), UserInfo.class);
+            return ApiResult.success().setData(LinkChatSessionVo.createSingleVo(session,sessionMember,user));
+        }else{
+            GroupInfo group = this.getMongoTemplate().findById(sessionMember.getTargetId(), GroupInfo.class);
+            return ApiResult.success().setData(LinkChatSessionVo.createGroupVo(session,sessionMember,group));
+        }
+    }
 }

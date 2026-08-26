@@ -8,8 +8,10 @@ import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -45,6 +47,7 @@ public class PartitionedOrderedExecutor {
     @PostConstruct
     public void init() {
         this.partitionCount = Math.max(1, this.config.getSeqPartitionCount());
+        int queueCapacity = Math.max(1, this.config.getPartitionQueueCapacity());
         this.partitions = new ExecutorService[this.partitionCount];
         for (int i = 0; i < this.partitionCount; i++) {
             final int idx = i;
@@ -57,15 +60,37 @@ public class PartitionedOrderedExecutor {
                     return t;
                 }
             };
-            this.partitions[i] = Executors.newSingleThreadExecutor(tf);
+            // 单线程 + 有界队列。不用 Executors.newSingleThreadExecutor：它的队列无界，
+            // 压测多少消息就堆多少，内存一路涨且积压会全量转成对下游的压力。
+            // 拒绝策略只能是 Abort：CallerRuns 会在提交线程（Netty eventLoop）上跑任务，
+            // 破坏本类赖以成立的「同 key 严格串行」。
+            this.partitions[i] = new ThreadPoolExecutor(
+                    1, 1,
+                    0L, TimeUnit.MILLISECONDS,
+                    new LinkedBlockingQueue<>(queueCapacity),
+                    tf,
+                    new ThreadPoolExecutor.AbortPolicy());
         }
-        log.info("分区有序线程池初始化完成, 分区数={}", this.partitionCount);
+        log.info("分区有序线程池初始化完成, 分区数={}, 单分区队列上限={}",
+                this.partitionCount, queueCapacity);
     }
 
 
-    public void submit(String key, Runnable task) {
+    /**
+     * 提交到 key 对应的分区。
+     *
+     * @return true 已入队；false 该分区积压已满，任务未被接受（调用方需自行降级，
+     *         例如放弃本条消息、让客户端靠 ACK 超时重发）
+     */
+    public boolean submit(String key, Runnable task) {
         int idx = partitionIndex(key);
-        this.partitions[idx].execute(task);
+        try {
+            this.partitions[idx].execute(task);
+            return true;
+        } catch (RejectedExecutionException e) {
+            log.warn("分区 {} 积压已满，拒绝任务, key={}", idx, key);
+            return false;
+        }
     }
 
     /** key → 分区号：floorMod 保证负 hash 也落在 [0, N)。 */

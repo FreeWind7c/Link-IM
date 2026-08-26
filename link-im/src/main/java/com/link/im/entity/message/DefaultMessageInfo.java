@@ -16,6 +16,7 @@ import com.link.im.entity.data.TextData;
 import com.link.im.entity.data.VideoData;
 import com.link.im.entity.message.quote.QuoteRef;
 import com.link.im.entity.message.type.MessageType;
+import com.link.im.vo.DefaultMessageVO;
 import lombok.Data;
 import lombok.ToString;
 import lombok.experimental.Accessors;
@@ -70,4 +71,12 @@ public class DefaultMessageInfo extends BaseMessage {
     }
 
 
+    public DefaultMessageVO toVo() {
+        DefaultMessageVO vo = new DefaultMessageVO();
+        BeanUtils.copyProperties(this,vo);
+        vo.setId(this.getId().toHexString());
+        vo.setSndId(this.getSndId().toHexString());
+        vo.setRcvId(this.getRcvId().toHexString());
+        return vo;
+    }
 }

@@ -2,14 +2,14 @@ package com.link.restapi.module.wallet.service;
 
 import com.link.common.pager.Pager;
 
-import com.link.im.constants.wallet.WalletFlowBizTypeKeys;
-import com.link.im.constants.wallet.WalletInOutKeys;
-import com.link.im.constants.wallet.WalletTopUpStatusKeys;
+import com.link.common.constants.wallet.WalletFlowBizTypeKeys;
+import com.link.common.constants.wallet.WalletInOutKeys;
+import com.link.common.constants.wallet.WalletTopUpStatusKeys;
 import com.link.im.entity.wallet.*;
-import com.link.im.enums.gloabl.GlobalCode;
-import com.link.im.enums.wallet.WalletApiCode;
+import com.link.restapi.enums.gloabl.GlobalCode;
+import com.link.restapi.enums.wallet.WalletApiCode;
 import com.link.im.mongo.BasePlatFormMongoService;
-import com.link.im.util.ApiResult;
+import com.link.restapi.utils.ApiResult;
 import com.link.restapi.module.wallet.model.dto.LinkMyselfWalletDto;
 import com.link.restapi.module.wallet.model.dto.LinkWalletTopUpDto;
 import com.link.restapi.module.wallet.model.dto.LinkWalletWithdrawDto;
@@ -53,7 +53,7 @@ public class WalletInfoService extends BasePlatFormMongoService<WalletInfo> {
     private ApplicationContext context;
 
 
-//    @Transactional
+    @Transactional
     public ApiResult topUp(LinkWalletTopUpDto dto) {
         if (!stringValidator(dto.getUserId(),dto.getSecretKey()))
             return ApiResult.error(GlobalCode.PARAMETER_VALIDATOR_ERROR);
@@ -228,7 +228,6 @@ public class WalletInfoService extends BasePlatFormMongoService<WalletInfo> {
     private static final int FLOW_LIMIT_MAX = 100;
 
     public ApiResult myselfWallet(LinkMyselfWalletDto dto) {
-        System.out.println("dto:"+ dto.toString());
         if (!stringValidator(dto.getUserId()))
             return ApiResult.error(GlobalCode.PARAMETER_VALIDATOR_ERROR);
 

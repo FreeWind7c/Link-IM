@@ -8,24 +8,26 @@ import com.link.common.core.model.group.LinkRemoveGroup;
 import com.link.common.im.data.LinkChatSession;
 import com.link.common.redis.RedisKeys;
 import com.link.common.util.id.ChatIdGenerator;
-import com.link.common.util.id.LinkID;
 import com.link.core.util.seq.MessageSeqAllocator;
-import com.link.im.constants.group.GroupRoleConstant;
+import com.link.common.constants.group.GroupRoleConstant;
 import com.link.im.entity.chat.ChatSessionMember;
 import com.link.im.entity.chat.ChatSession;
 import com.link.im.entity.data.NoticeData;
 import com.link.im.entity.data.notice.JoinGroupNoticeData;
-import com.link.im.entity.data.notice.RemoveGroupNoticeData;
 import com.link.im.entity.group.GroupInfo;
 import com.link.im.entity.group.GroupMember;
 import com.link.im.entity.message.GroupMessageInfo;
 import com.link.im.entity.message.type.MessageType;
 import com.link.im.entity.user.UserInfo;
-import com.link.im.enums.gloabl.GlobalCode;
-import com.link.im.enums.group.GroupApiCode;
+import com.link.im.repository.ChatSessionRepository;
+import com.link.restapi.enums.gloabl.GlobalCode;
+import com.link.restapi.enums.group.GroupApiCode;
+import com.link.im.factory.LinkBaseDataFactory;
+import com.link.im.factory.LinkMessageFactory;
 import com.link.im.mongo.BasePlatFormMongoService;
 import com.link.im.service.LinkRedisService;
-import com.link.im.util.ApiResult;
+import com.link.restapi.utils.ApiResult;
+import com.link.im.vo.GroupMessageVO;
 import com.link.restapi.module.group.model.dto.LinkAddGroupAdministratorDto;
 import com.link.restapi.module.group.model.dto.LinkCreateGroupDto;
 import com.link.restapi.module.group.model.dto.LinkJoinGroupDto;
@@ -38,6 +40,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.index.PathBasedRedisIndexDefinition;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -75,7 +78,16 @@ public class GroupInfoService extends BasePlatFormMongoService<GroupInfo> {
     @Autowired
     private LinkRedisService redisService;
 
-//    @Transactional(rollbackFor = Exception.class)
+    @Autowired
+    private LinkBaseDataFactory dataFactory;
+
+    @Autowired
+    private LinkMessageFactory messageFactory;
+
+    @Autowired
+    private ChatSessionRepository sessionRepository;
+
+    @Transactional(rollbackFor = Exception.class)
     public ApiResult createGroup(LinkCreateGroupDto dto) {
         if (!stringValidator(dto.getOwnerId()) || dto.getMemebrs().size() < 1)
             return ApiResult.error(GlobalCode.PARAMETER_VALIDATOR_ERROR);
@@ -99,10 +111,19 @@ public class GroupInfoService extends BasePlatFormMongoService<GroupInfo> {
 
         this.getMongoTemplate().insert(session);
         this.getMongoTemplate().insert(chatSessionMembers, ChatSessionMember.class);
+        NoticeData noticeData = this.dataFactory.createGroupNoticeData(chatId, dto.getOwnerId());
+        GroupMessageInfo messageInfo = (GroupMessageInfo) messageFactory.create(session.getChatId(), new ObjectId(dto.getOwnerId()), group.getId(), noticeData.getMessageType()
+                , noticeData, GroupMessageInfo.class);
+        GroupMessageVO vo = messageInfo.toVo();
+        this.pushPublisher.messageStorage(vo,vo.getMessageType());
+        this.sessionRepository.updateSession(messageInfo);
+        this.pushPublisher.push(EventType.GROUP_MESSAGE,Arrays.asList(dto.getOwnerId()),vo);
+
+
         return ApiResult.success().setMsg(GroupApiCode.GROUP_CREATE_SUCCESS.getMessage());
     }
 
-//    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class)
     public ApiResult joinGroup(LinkJoinGroupDto dto) {
         // 参数校验
         if (!stringValidator(dto.getInviterUserId())
@@ -243,30 +264,23 @@ public class GroupInfoService extends BasePlatFormMongoService<GroupInfo> {
         }
         Set<String> memberIds = redisService.getChatMemberIds(session.getChatId());
         this.pushPublisher.push(EventType.GROUP_MESSAGE,memberIds,
-                createJoinGroupNotice(session.getChatId(),dto.getUserIds(),dto.getInviterUserId()));
+                createJoinGroupNotice(group.getId(),session.getChatId(),dto.getUserIds(),dto.getInviterUserId()));
         return ApiResult.success();
     }
 
-    private GroupMessageInfo createJoinGroupNotice(String chatId, List<String> userId, String inviterUserId) {
+    private GroupMessageInfo createJoinGroupNotice(ObjectId groupId, String chatId, List<String> userId, String inviterUserId) {
         Map<ObjectId, String> nameMap = queryNicknames(userId, inviterUserId);
         List<JoinGroupNoticeData.NoticeUser> joinUsers = toNoticeUsers(userId, nameMap);
-
-        JoinGroupNoticeData data = new JoinGroupNoticeData();
-        data.setInviter(toNoticeUser(inviterUserId, nameMap));
-        data.setJoinUsers(joinUsers);
-
-        return persistGroupNotice(chatId, inviterUserId, data);
+        NoticeData data = this.dataFactory.createJoinNoticeData(chatId, toNoticeUser(inviterUserId, nameMap), joinUsers);
+        return persistGroupNotice(groupId,chatId, inviterUserId, data);
     }
 
-    private GroupMessageInfo createRemoveGroupNotice(String chatId, List<String> removedUserId, String operationUserId) {
+    private GroupMessageInfo createRemoveGroupNotice(ObjectId groupId,String chatId, List<String> removedUserId, String operationUserId) {
         Map<ObjectId, String> nameMap = queryNicknames(removedUserId, operationUserId);
         List<JoinGroupNoticeData.NoticeUser> removeUsers = toNoticeUsers(removedUserId, nameMap);
 
-        RemoveGroupNoticeData data = new RemoveGroupNoticeData();
-        data.setOperationUser(toNoticeUser(operationUserId, nameMap));
-        data.setRemoveUsers(removeUsers);
-
-        return persistGroupNotice(chatId, operationUserId, data);
+        NoticeData data = this.dataFactory.createRemoveGroupNoticeData(chatId, toNoticeUser(operationUserId, nameMap), removeUsers);
+        return persistGroupNotice(groupId, chatId, operationUserId, data);
     }
 
     /** 批量查 userId + operatorId 的昵称，返回 id -> nickname。 */
@@ -291,13 +305,14 @@ public class GroupInfoService extends BasePlatFormMongoService<GroupInfo> {
     /**
      * 落库一条群通知消息，并同步会话的 lastMsg* 摘要字段。
      *
-     * @param data 具体的通知数据（JoinGroupNoticeData / RemoveGroupNoticeData 等 NoticeData 子类）
+     * @param groupId
+     * @param data    具体的通知数据（JoinGroupNoticeData / RemoveGroupNoticeData 等 NoticeData 子类）
      */
-    private GroupMessageInfo persistGroupNotice(String chatId, String sndId, NoticeData data) {
+    private GroupMessageInfo persistGroupNotice(ObjectId groupId, String chatId, String sndId, NoticeData data) {
         ObjectId id = new ObjectId();
         long seq = messageSeqAllocator.allocate(chatId, id.toHexString()).seq();
 
-        NoticeData noticeData = new NoticeData().setChatId(chatId).setData(data);
+
         GroupMessageInfo message = (GroupMessageInfo) new GroupMessageInfo().setId(id)
                 .setSeq((int) seq)
                 .setType(MessageType.NOTICE_MESSAGE.getType())
@@ -305,7 +320,7 @@ public class GroupInfoService extends BasePlatFormMongoService<GroupInfo> {
                 .setSndId(new ObjectId(sndId))
                 .setRcvId(null)
                 .setState(0)
-                .setData(new Gson().toJson(noticeData))
+                .setData(new Gson().toJson(data))
                 .setTimestamp(now());
         this.getMongoTemplate().insert(message);
 
@@ -337,7 +352,7 @@ public class GroupInfoService extends BasePlatFormMongoService<GroupInfo> {
                 .setActive(member.isActive());
     }
 
-//    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class)
     public ApiResult addAdministrator(LinkAddGroupAdministratorDto dto) {
 
         // 参数校验
@@ -522,7 +537,7 @@ public class GroupInfoService extends BasePlatFormMongoService<GroupInfo> {
 
         // 被移除成员已退群，只给剩余成员推群通知（getChatMemberIds 取的是删除后的成员表）
         Set<String> memberIds = redisService.getChatMemberIds(chatId);
-        this.pushPublisher.push(EventType.GROUP_MESSAGE, memberIds, createRemoveGroupNotice(chatId, dto.getRemovedUserId(), dto.getOperationUserId()));
+        this.pushPublisher.push(EventType.GROUP_MESSAGE, memberIds, createRemoveGroupNotice(new ObjectId(dto.getGroupId()),chatId, dto.getRemovedUserId(), dto.getOperationUserId()));
         return ApiResult.success();
     }
 }

@@ -2,6 +2,7 @@ package com.link.restapi;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * HTTP 业务进程启动类。
@@ -10,11 +11,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * link-core 引擎类，但未设 {@code link.netty.enabled}，{@code DefaultServer} 不注册，
  * 故进程内不启动 Netty、不绑长连接端口。
  *
- * <p>注意：与长连接相关的两处能力在本进程内降级——登录时的“异地登录”校验拿不到在线
+ * <p>注意：与长连接相关的两处能力在本进程内降级——登录时的”异地登录”校验拿不到在线
  * session（放行），好友通过后的在线推送为 no-op。两者需 Redis 在线表 + MQ 接入后跨进程生效。
  *
  * <p>启动类置于 com.link 根包，使组件扫描覆盖 com.link.restapi / com.link.im 等全部模块。
  */
+@EnableScheduling
 @SpringBootApplication(scanBasePackages = "com.link")
 public class LinkRestApiApplication {
 

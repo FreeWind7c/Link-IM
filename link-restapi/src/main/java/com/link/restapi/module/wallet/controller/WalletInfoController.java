@@ -1,11 +1,11 @@
 package com.link.restapi.module.wallet.controller;
 
 import com.link.common.pager.Pager;
-import com.link.im.constants.wallet.WalletTopUpStatusKeys;
+import com.link.common.constants.wallet.WalletTopUpStatusKeys;
 import com.link.im.entity.wallet.WalletFlow;
 import com.link.im.entity.wallet.WalletInfo;
 import com.link.im.entity.wallet.WalletTopUp;
-import com.link.im.util.ApiResult;
+import com.link.restapi.utils.ApiResult;
 import com.link.im.util.MD5Util;
 import com.link.restapi.module.wallet.model.dto.*;
 import com.link.restapi.module.wallet.model.vo.LinkMyselfWalletInfoVo;
@@ -13,9 +13,6 @@ import com.link.restapi.module.wallet.service.WalletInfoService;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;

@@ -51,12 +51,12 @@ public class LinkDefaultMessageProcessor implements LinkMessageProcessor {
         forwardSend(info);
     }
 
-    private void forwardSend(DefaultMessageInfo message) {
+    public void forwardSend(DefaultMessageInfo message) {
 
         String rcvId = message.getRcvId().toHexString();
         List<LinkSession> sessions = this.config.getSessionManager().getSession(rcvId);
 
-        // B 完全离线：不推送，消息保持 undelivered，等 B 上线同步时再补送。
+
         if (sessions == null || sessions.isEmpty()) {
             log.info("接收方 {} 不在线，消息 {} 留存待上线同步", rcvId, message.getId());
             return;
@@ -79,9 +79,8 @@ public class LinkDefaultMessageProcessor implements LinkMessageProcessor {
      *
      * @param attempt 本次是第几次发送（1 = 首发）
      */
-    private void pushWithRetry(DefaultMessageInfo message, Channel target, int attempt) {
+    public void pushWithRetry(DefaultMessageInfo message, Channel target, int attempt) {
         this.config.getLinkSender().send(EventType.DEFAULT_MESSAGE, target, message);
-
         long delay = BASE_DELAY_MS * (1L << (attempt - 1));   // 3s, 6s, 12s, 24s...
         this.retryManager.schedule(message.getId().toHexString(), target, delay, timeout -> {
             // 跑到这里说明超时仍未收到 B 的 ACK（收到的话该任务早被 cancel 了）

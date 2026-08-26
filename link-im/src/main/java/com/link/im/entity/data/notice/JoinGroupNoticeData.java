@@ -1,6 +1,7 @@
 package com.link.im.entity.data.notice;
 
 import com.link.im.entity.data.NoticeData;
+import com.link.im.provider.NoticeDataProvider;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -12,16 +13,21 @@ import java.util.List;
  */
 @Data
 @Accessors(chain = true)
-public class JoinGroupNoticeData extends NoticeData {
-
-    private int type = 1;
+public class JoinGroupNoticeData extends NoticeData implements NoticeDataProvider {
 
     private NoticeUser inviter;
 
     private List<NoticeUser> joinUsers;
 
-    private String text;
+    @Override
+    public int getDataType() {
+        return 2;
+    }
 
+    @Override
+    public String getTemplate() {
+        return "加入群聊";
+    }
 
 
     @Data

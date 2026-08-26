@@ -1,6 +1,7 @@
 package com.link.im.entity.data.notice;
 
 import com.link.im.entity.data.NoticeData;
+import com.link.im.provider.NoticeDataProvider;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -12,14 +13,23 @@ import java.util.List;
  */
 @Data
 @Accessors(chain = true)
-public class RemoveGroupNoticeData extends NoticeData {
-    private int type = 2;
+public class RemoveGroupNoticeData extends NoticeData implements NoticeDataProvider {
 
     private JoinGroupNoticeData.NoticeUser operationUser;
 
     private List<JoinGroupNoticeData.NoticeUser> removeUsers;
 
-    private String text;
+    @Override
+    public int getDataType() {
+        return 3;
+    }
+
+    @Override
+    public String getTemplate() {
+        return "移除群聊";
+    }
+
+
     @Data
     public static class NoticeUser{
         private String id;

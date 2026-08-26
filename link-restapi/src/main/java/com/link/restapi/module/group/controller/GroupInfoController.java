@@ -1,6 +1,6 @@
 package com.link.restapi.module.group.controller;
 
-import com.link.im.util.ApiResult;
+import com.link.restapi.utils.ApiResult;
 import com.link.restapi.module.group.model.dto.LinkGetGroupMemberDto;
 import com.link.restapi.module.group.model.dto.LinkAddGroupAdministratorDto;
 import com.link.restapi.module.group.model.dto.LinkCreateGroupDto;

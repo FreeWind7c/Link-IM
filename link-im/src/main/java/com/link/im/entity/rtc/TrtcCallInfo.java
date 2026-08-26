@@ -1,6 +1,7 @@
 package com.link.im.entity.rtc;
 
 import com.link.im.entity.base.BaseEntity;
+import com.link.im.service.MessageData;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.bson.types.ObjectId;
@@ -16,9 +17,12 @@ import java.util.List;
 @Data
 @Accessors(chain = true)
 @Document(collection = TrtcCallInfo.COLLECTION_NAME)
-public class TrtcCallInfo extends BaseEntity {
+public class TrtcCallInfo extends BaseEntity implements MessageData {
 
     public static final String COLLECTION_NAME = "trtc_call_info";
+
+    @Field("message_id")
+    private ObjectId messageId;
 
     @Field("initiator_id")
     private ObjectId initiatorId;
@@ -31,6 +35,11 @@ public class TrtcCallInfo extends BaseEntity {
 
     @Field("chat_id")
     private String chatId;
+
+    // 1语音通话 2视频通话
+    @Field("media_type")
+    private int mediaType;
+
 
     @Field("start_time")
     private long startTime;
@@ -47,5 +56,7 @@ public class TrtcCallInfo extends BaseEntity {
     @Field("participant_ids")
     private List<ObjectId> participantIds;
 
-
+    public ObjectId getMessageId() {
+        return this.messageId;
+    }
 }

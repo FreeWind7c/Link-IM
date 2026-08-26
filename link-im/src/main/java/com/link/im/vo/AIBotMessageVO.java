@@ -1,32 +1,25 @@
 package com.link.im.vo;
 
+import com.link.im.dto.ai.AIBotMessageDTO;
+import com.link.im.entity.base.BaseBootMessage;
 import com.link.im.entity.base.BaseBotData;
+import lombok.Data;
+import lombok.experimental.Accessors;
+import org.springframework.beans.BeanUtils;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 /**
  * @Author: 无敌代码写手
  * @CreateTime: 2026年08月12日
  */
-public class AIBotMessageVO {
+@Data
+@Accessors(chain = true)
+public class AIBotMessageVO extends BaseBootMessage {
 
-    private String id;
+    public static AIBotMessageVO toVo(AIBotMessageDTO dto) {
+        AIBotMessageVO vo = new AIBotMessageVO();;
+        BeanUtils.copyProperties(dto,vo);
 
-    private int seq;
-
-    // 1文本 2媒体
-    private int type;
-
-    @Field("chat_id")
-    private String chatId;
-
-    @Field("snd_id")
-    private String sndId;
-
-    @Field("rcv_id")
-    private String rcvId;
-
-    private BaseBotData data;
-
-    private long timestamp;
-
+        return null;
+    }
 }

@@ -21,6 +21,10 @@
     -->
     <dependencies>
         <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.link</groupId>
             <artifactId>link-common</artifactId>
         </dependency>

@@ -23,4 +23,6 @@ public class LinkTrtcRoomIdDTO {
 
     // 1单聊 2群聊
     private int type;
+
+    private int mediaType;
 }

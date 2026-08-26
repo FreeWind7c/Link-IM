@@ -1,7 +1,6 @@
 package com.link.im.entity.group;
 
-import com.link.im.constants.group.GroupRoleConstant;
-import com.link.im.constants.group.GroupSourceConstant;
+import com.link.common.constants.group.GroupSourceConstant;
 import com.link.im.entity.base.BaseEntity;
 import lombok.Data;
 import lombok.experimental.Accessors;

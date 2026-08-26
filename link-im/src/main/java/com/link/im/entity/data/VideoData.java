@@ -1,6 +1,8 @@
 package com.link.im.entity.data;
 
 import com.link.im.entity.base.BaseData;
+import com.link.im.entity.message.type.MessageType;
+import com.link.im.provider.MessageTypeProvider;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -10,7 +12,12 @@ import lombok.experimental.Accessors;
  */
 @Data
 @Accessors(chain = true)
-public class VideoData extends BaseData {
+public class VideoData extends BaseData implements MessageTypeProvider {
 
     private String url;
+
+    @Override
+    public int getMessageType() {
+        return MessageType.VIDEO_MESSAGE.getType();
+    }
 }

@@ -2,16 +2,8 @@ package com.link.restapi.module.trtc.controller;
 
 import com.alibaba.fastjson.JSONObject;
 import com.link.core.util.seq.MessageSeqAllocator;
-import com.link.im.constants.publisher.PublisherRouterKeys;
-import com.link.im.constants.trtc.TrtcCallStatusCode;
-import com.link.im.entity.base.BaseMessage;
-import com.link.im.entity.data.NoticeData;
-import com.link.im.entity.data.notice.TrtcCallNoticeData;
-import com.link.im.entity.message.DefaultMessageInfo;
-import com.link.im.entity.message.GroupMessageInfo;
-import com.link.im.entity.message.type.MessageType;
-import com.link.im.entity.rtc.TrtcCallInfo;
-import com.link.im.util.ApiResult;
+import com.link.restapi.utils.ApiResult;
+import com.link.restapi.module.trtc.model.dto.LinkTrtcCallDTO;
 import com.link.restapi.module.trtc.model.dto.LinkTrtcRoomIdDTO;
 import com.link.restapi.module.trtc.service.LinkTrtcService;
 import com.link.restapi.push.RemotePushPublisher;
@@ -19,15 +11,12 @@ import com.link.restapi.utils.LinkTrtcSignUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.bson.types.ObjectId;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.security.PublicKey;
 
 /**
  * TRTC 相关接口。
@@ -59,6 +48,20 @@ public class LinkTrtcController {
     private MessageSeqAllocator allocator;
 
 
+
+    @PostMapping("/hangUp-call")
+    public ApiResult hangUpCall(@RequestBody LinkTrtcCallDTO dto){
+
+        return trtcService.hangUpCall(dto);
+    }
+
+    @PostMapping("/accept-call")
+    public ApiResult acceptCall(@RequestBody LinkTrtcCallDTO dto){
+
+        return trtcService.acceptCall(dto);
+    }
+
+
     @PostMapping("/start-call")
     public ApiResult startCall(@RequestBody LinkTrtcRoomIdDTO dto){
         return trtcService.startCall(dto);
@@ -73,7 +76,7 @@ public class LinkTrtcController {
                                       HttpServletRequest request, HttpServletResponse response) throws IOException {
         byte[] bodyBytes = request.getInputStream().readAllBytes();
         String rawBody = new String(bodyBytes, StandardCharsets.UTF_8);
-        log.info("trtc call-back -> {}" , rawBody);
+//        log.info("trtc call-back -> {}" , rawBody);
         response.setStatus(200);
         JSONObject data = JSONObject.parseObject(rawBody);
         JSONObject eventInfo = data.getJSONObject("EventInfo");

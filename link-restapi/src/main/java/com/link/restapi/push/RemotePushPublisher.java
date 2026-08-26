@@ -5,11 +5,11 @@ import com.link.common.core.event.EventType;
 import com.link.common.core.mq.FanoutPushCommand;
 import com.link.common.core.mq.DirectPushCommand;
 import com.link.common.core.mq.PushMqConst;
-import com.link.im.constants.publisher.PublisherRouterKeys;
-import com.link.im.entity.base.BaseMessage;
-import com.link.im.entity.message.DefaultMessageInfo;
-import com.link.im.entity.message.GroupMessageInfo;
+import com.link.common.constants.publisher.PublisherRouterKeys;
 import com.link.im.entity.wallet.*;
+import com.link.im.vo.DefaultMessageVO;
+import com.link.im.vo.GroupMessageVO;
+import com.link.im.vo.base.BaseMessageVO;
 import com.link.restapi.module.wallet.service.WalletInfoService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -61,13 +61,7 @@ public class RemotePushPublisher {
         rabbitTemplate.convertAndSend(exchangeName,routeKey,obj);
     }
 
-    /**
-     * 批量发布在线推送指令（如群消息需推给多名成员）。payload 只序列化一次，逐个用户复用。
-     *
-     * @param userIds   目标用户集合
-     * @param eventType 事件类型
-     * @param payload   要推给端上的业务数据
-     */
+
     public void push(EventType eventType, Collection<String> userIds,  Object payload) {
         if (CollectionUtils.isEmpty(userIds)) {
             return;
@@ -75,7 +69,7 @@ public class RemotePushPublisher {
         try {
             String payloadType = payload.getClass().getName();
             String payloadJson = objectMapper.writeValueAsString(payload);
-            log.info("payloadJson:" + payloadJson);
+            log.info("发送事件消息：" + payloadJson);
             FanoutPushCommand cmd = new FanoutPushCommand()
                     .setUserId( userIds)
                     .setEventType(eventType.getAction())
@@ -89,15 +83,15 @@ public class RemotePushPublisher {
         }
     }
 
-    public void pushMessageStorage(BaseMessage baseMessage, int type) {
+    public void messageStorage(BaseMessageVO baseMessage, int type) {
         if (type== 1)
         {
-            DefaultMessageInfo message = (DefaultMessageInfo) baseMessage ;
+            DefaultMessageVO message = (DefaultMessageVO) baseMessage ;
             push(PublisherRouterKeys.MESSAGE_EXCHANGE,PublisherRouterKeys.DEFAULT_MESSAGE_STORAGE_ROUTING_KEY,message);
         }
         else
         {
-            GroupMessageInfo message = (GroupMessageInfo) baseMessage;
+            GroupMessageVO message = (GroupMessageVO) baseMessage;
             push(PublisherRouterKeys.MESSAGE_EXCHANGE,PublisherRouterKeys.GROUP_MESSAGE_STORAGE_ROUTING_KEY,message);
         }
     }

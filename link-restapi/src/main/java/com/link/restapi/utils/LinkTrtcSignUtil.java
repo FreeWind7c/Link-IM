@@ -1,7 +1,6 @@
 package com.link.restapi.utils;
 
-import com.link.im.enums.gloabl.GlobalCode;
-import com.link.im.util.ApiResult;
+import com.link.restapi.enums.gloabl.GlobalCode;
 import com.link.restapi.module.trtc.config.TLSSigAPIv2;
 import com.link.restapi.module.trtc.config.TrtcProperties;
 import com.link.restapi.module.trtc.model.vo.LinkTrtcUserSigVo;

@@ -11,6 +11,8 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class LinkApproveFriendDTO {
 
+    private String id;
+
     private String userId;
 
     private String friendId;

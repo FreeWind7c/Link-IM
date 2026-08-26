@@ -55,8 +55,9 @@ public class LinkChatSessionVo {
 
 
     /** 单聊：title/avatar 取对端用户的昵称、头像。 */
-    public LinkChatSessionVo createSingleVo(ChatSession session, ChatSessionMember member, UserInfo user) {
-        return this.setChatId(session.getChatId())
+    public static LinkChatSessionVo createSingleVo(ChatSession session, ChatSessionMember member, UserInfo user) {
+        LinkChatSessionVo vo = new LinkChatSessionVo();
+        return vo.setChatId(session.getChatId())
                 .setType(session.getType())
                 .setTitle(user.getNickname())
                 .setCategory(session.getCategory())
@@ -77,8 +78,10 @@ public class LinkChatSessionVo {
     }
 
     /** 群聊：title/avatar 取群的标题、头像。 */
-    public LinkChatSessionVo createGroupVo(ChatSession session, ChatSessionMember member, GroupInfo group) {
-        return this.setChatId(session.getChatId())
+    public static LinkChatSessionVo createGroupVo(ChatSession session, ChatSessionMember member, GroupInfo group) {
+        LinkChatSessionVo vo = new LinkChatSessionVo();
+        return vo.setChatId(session.getChatId())
+                .setCategory(session.getCategory())
                 .setType(session.getType())
                 .setTitle(group.getTitle())
                 .setActive(member.isActive())
@@ -95,5 +98,10 @@ public class LinkChatSessionVo {
                 .setSilence(member.isSilence())
                 .setHidden(member.isHidden())
                 .setAtList(member.getAtList());
+    }
+
+    public static LinkChatSessionVo fromVo(ChatSession session) {
+        LinkChatSessionVo vo = new LinkChatSessionVo();
+        vo.set
     }
 }

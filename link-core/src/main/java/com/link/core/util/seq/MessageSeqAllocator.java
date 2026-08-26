@@ -8,6 +8,7 @@ import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Component;
 
+import javax.security.auth.callback.CallbackHandler;
 import java.util.Arrays;
 import java.util.List;
 
@@ -30,6 +31,8 @@ public class MessageSeqAllocator {
 
     private final RedisScript<List> dedupSeqScript;
 
+    public static final String DEDUP = "dedup:";
+
     public MessageSeqAllocator(StringRedisTemplate stringRedisTemplate) {
         this.stringRedisTemplate = stringRedisTemplate;
 
@@ -42,6 +45,15 @@ public class MessageSeqAllocator {
     }
 
     /**
+     * 获取 StringRedisTemplate 实例，供外部清除去重标记使用
+     */
+    public StringRedisTemplate getStringRedisTemplate() {
+        return stringRedisTemplate;
+    }
+
+
+
+    /**
      * 为一条消息分配 seq；若是重发，返回它当初已分配的 seq（不重复递增）。
      *
      * @param conversationId 会话 ID
@@ -49,7 +61,7 @@ public class MessageSeqAllocator {
      * @return SeqResult：duplicate 标识 + seq（无论新老，seq 都有值，回 ACK 用）
      */
     public SeqResult allocate(String conversationId, String messageId) {
-        String dedupKey = "dedup:" + conversationId + ":" + messageId;
+        String dedupKey = DEDUP + conversationId + ":" + messageId;
         String seqKey = RedisKeys.SEQ + conversationId;
 
         @SuppressWarnings("unchecked")
@@ -73,6 +85,24 @@ public class MessageSeqAllocator {
         String seqKey = RedisKeys.SEQ + chatId;
         String value = this.stringRedisTemplate.opsForValue().get(seqKey);
         return value == null ? 0L : Long.parseLong(value);
+    }
+
+    public long getMessageSeq(String chatId,String messageId){
+        String value = (String) ( this.stringRedisTemplate.opsForValue().get(DEDUP + chatId + ":" + messageId));
+        return value == null ? 0L : Long.parseLong(value);
+    }
+
+    /**
+     * 清除去重标记，让同一条消息的重发能被当成新消息重新处理一遍。
+     *
+     * <p>用于「seq 已分配但重活没落地」的场合：线程池过载丢弃、落库异常等。
+     * 不清的话客户端重发会命中 duplicate 分支，永远走不进落库路径。
+     *
+     * <p>代价是这次分配掉的 seq 成了空洞（重发会拿到新 seq）。会话内 seq 只要求单调递增、
+     * 不要求连续，客户端按 seq 区间拉取不受影响。
+     */
+    public void releaseDedup(String chatId, String messageId) {
+        this.stringRedisTemplate.delete(DEDUP + chatId + ":" + messageId);
     }
 
     /**

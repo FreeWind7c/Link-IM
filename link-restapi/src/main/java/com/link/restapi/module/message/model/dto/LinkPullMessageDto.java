@@ -14,6 +14,7 @@ public class LinkPullMessageDto {
 
     private String userId;
 
+    // 会话类型 1单聊 2群聊
     private int sessionType;
 
     private int skip;

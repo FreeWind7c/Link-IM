@@ -1,6 +1,7 @@
 package com.link.im.entity.redpack;
 
 import com.link.im.entity.base.BaseEntity;
+import com.link.im.service.MessageData;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.bson.types.ObjectId;
@@ -27,34 +28,16 @@ import java.util.List;
         // 定时扫过期红包用：按 status + expireTime 查。def 里写库中真实字段名（expire_time 有 @Field 映射）
         @CompoundIndex(name = "idx_status_expire", def = "{'status':1,'expire_time':1}")
 })
-public class RedPacket extends BaseEntity {
+public class RedPacket extends BaseEntity implements MessageData {
 
     public static final String COLLECTION_NAME = "red_packet";
 
-    /**
-     * 客户端传来的业务唯一流水号，发红包的<b>持久化</b>幂等凭据。
-     *
-     * <p>Redis 幂等键只是快速拦截，会过期、会因 Redis 重启丢失；真正保证「同一次点击不会扣两次钱」
-     * 的是这个字段上的唯一索引。sparse=true 是为了兼容本字段上线前的历史数据（值为 null 的多条不冲突）。
-     */
     @Field("biz_detail_id")
     @Indexed(unique = true, sparse = true, name = "idx_biz_detail_id")
     private String bizDetailId;
 
-    /**
-     * 承载这个红包的会话消息 id（发红包时与红包同事务写入）。
-     *
-     * <p>有了它，「更新红包气泡状态」就不必再采信客户端<b>本次请求</b>传上来的 messageId——
-     * 那是可伪造的，照着写等于允许任何人往别人的消息里塞 claimant_ids。
-     * 过期退款走定时任务，压根没有客户端，也只能靠这个字段找到要置灰的那条消息。
-     *
-     * <p>当前取值等于 {@link #bizDetailId}（发红包时同源赋值）。<b>但两者不能合并成一个字段</b>：
-     * bizDetailId 是幂等凭据，带唯一索引，写入后永不能变——变了就等于放行重复扣款；
-     * 本字段是指向会话消息的外键，语义上允许变（后端补发消息、红包换绑消息都会改它）。
-     * 现在值相同只是巧合，合并会把这两条互斥的约束绑死。
-     */
     @Field("message_id")
-    private String messageId;
+    private ObjectId messageId;
 
     /** 发送者 */
     @Field("snd_id")
@@ -96,14 +79,16 @@ public class RedPacket extends BaseEntity {
     /** 祝福语 */
     private String blessing;
 
-    /**
-     * 领取人 ID 列表，用于快速查询谁领取了这个红包。
-     *
-     * <p>冗余字段，权威数据在 {@code RedPacketRecord} 表。
-     * 抢红包时通过 $addToSet 原子更新，避免每次都 join RedPacketRecord 表查询。
-     * 这样前端渲染气泡、推送事件时都能快速获取领取人列表。
-     */
     @Field("claimant_ids")
     private List<ObjectId> claimantIds = new ArrayList<>();
+
+
+
+
+    @Override
+    public ObjectId getMessageId() {
+        return messageId;
+    }
+
 
 }

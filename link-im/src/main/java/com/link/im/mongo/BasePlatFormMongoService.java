@@ -45,7 +45,7 @@ public abstract class BasePlatFormMongoService<T> {
      * 若中间类写成 {@code BaseXxx<T> extends BasePlatFormMongoService<T>}，
      * 拿到的会是类型变量而非真实 Class，此处会明确报错而不是静默出错。
      */
-    private static Class<?> resolveEntityClass(Class<?> clazz) {
+    protected static Class<?> resolveEntityClass(Class<?> clazz) {
         Class<?> current = clazz;
         while (current != null && current != Object.class) {
             Type superclass = current.getGenericSuperclass();
@@ -64,7 +64,7 @@ public abstract class BasePlatFormMongoService<T> {
                 + "若中间隔了抽象类，请在该抽象类上写死实体类型");
     }
 
-    public void print(String title,Object t){
+    public void printf(String title,Object t){
         String json = gson.toJson(t);
         log.info(title + json);
     }
@@ -75,7 +75,7 @@ public abstract class BasePlatFormMongoService<T> {
         return true;
     }
 
-    // 为空返回false
+    // 返回true不等于空，返回false等于空
     public static boolean stringValidator(String... params){
         boolean validator = true;
         for (String param : params) {
@@ -87,12 +87,6 @@ public abstract class BasePlatFormMongoService<T> {
         return validator;
     }
 
-    protected void printf(String title,Object obj,Class<?> clazz){
-        Gson gson = new Gson();
-        String json = gson.toJson(obj, clazz);
-
-        log.info(title+":"+json);
-    }
 
     public long now(){
         return System.currentTimeMillis();

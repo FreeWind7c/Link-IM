@@ -1,6 +1,6 @@
 package com.link.restapi;
 
-import com.link.im.constants.wallet.WalletTopUpStatusKeys;
+import com.link.common.constants.wallet.WalletTopUpStatusKeys;
 import com.link.im.entity.wallet.WalletTopUp;
 import com.link.im.util.MD5Util;
 import org.bson.types.ObjectId;

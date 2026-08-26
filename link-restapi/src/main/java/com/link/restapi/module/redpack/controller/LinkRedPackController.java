@@ -1,6 +1,6 @@
 package com.link.restapi.module.redpack.controller;
 
-import com.link.im.util.ApiResult;
+import com.link.restapi.utils.ApiResult;
 import com.link.restapi.module.redpack.model.dto.LinkGetRedPacketDTO;
 import com.link.restapi.module.redpack.service.RedPackService;
 import com.link.restapi.module.redpack.model.dto.LinkGrabPacketDto;

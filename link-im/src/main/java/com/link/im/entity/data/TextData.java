@@ -1,8 +1,12 @@
 package com.link.im.entity.data;
 
 import com.link.im.entity.base.BaseData;
+import com.link.im.entity.data.message.Mention;
+import com.link.im.entity.message.type.MessageType;
+import com.link.im.provider.MessageTypeProvider;
 import lombok.Data;
 import lombok.ToString;
+import lombok.experimental.Accessors;
 
 import java.util.List;
 
@@ -11,18 +15,10 @@ import java.util.List;
  * @CreateTime: 2026年06月12日
  */
 @Data
+@Accessors(chain = true)
 @ToString(callSuper = true)
-public class TextData extends BaseData {
+public class TextData extends BaseData implements MessageTypeProvider {
 
-    /**
-     * 正文。@ 处用占位符表示，避免存昵称（昵称会改、且无法可靠反查用户，还能防昵称注入）：
-     * <ul>
-     *   <li>@某人 → {@code {@userId}}，userId 必须能在 {@link #mentions} 里找到；</li>
-     *   <li>@全体 → {@code {@all}}，且 {@link #mentionAll} 为 true。</li>
-     * </ul>
-     * 例：{@code "上午的方案 {@1001} 你看下,{@all} 也确认下"}。
-     * 无 @ 的老消息 content 里不含占位符，渲染按普通文本处理，完全兼容。
-     */
     private String content;
 
     /**
@@ -33,4 +29,9 @@ public class TextData extends BaseData {
 
     /** 是否 @ 全体成员。与 {@link #mentions} 可同时存在。仅群主/管理员可置 true，服务端会校验。 */
     private boolean mentionAll;
+
+    @Override
+    public int getMessageType() {
+        return MessageType.TEXT_MESSAGE.getType();
+    }
 }

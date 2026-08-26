@@ -5,7 +5,7 @@ import com.google.gson.Gson;
 import com.link.common.core.event.EventType;
 import com.link.common.core.mq.DirectPushCommand;
 import com.link.common.core.mq.PushMqConst;
-import com.link.im.service.LinkMessageSender;
+import com.link.im.sender.LinkMessageSender;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
@@ -63,7 +63,7 @@ public class PushCommandListener {
             Class<?> payloadClass = Class.forName(cmd.getPayloadType());
 
             payload = objectMapper.readValue(cmd.getPayloadJson(), payloadClass);
-            log.info("payload: " + new Gson().toJson(payload));
+            log.info("收到事件消息: " + new Gson().toJson(payload));
         } catch (Exception e) {
             // payload 还原失败属脏数据，记日志丢弃即可——重试也不会变好，不要重回队列打转
             log.error("还原 DirectPushCommand payload 失败，丢弃。type={}, userId={}",
@@ -71,7 +71,7 @@ public class PushCommandListener {
             return;
         }
 
-        log.info("收到事件->{},数据->{}",eventType,payload.toString());
+
         // 本节点持有该用户连接则真正下发；否则 sender 内部 no-op（广播下的正常情况）
         this.sender.send(cmd.getUserId(), eventType, payload);
     }

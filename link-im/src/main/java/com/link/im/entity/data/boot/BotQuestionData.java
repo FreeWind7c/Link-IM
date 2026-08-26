@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 
+import java.util.List;
+
 /**
  * @Author: 无敌代码写手
  * @CreateTime: 2026年08月13日
@@ -16,6 +18,6 @@ public class BotQuestionData extends BaseBotData {
 
     private String question;
 
-    private BotMediaData media;
+    private List<BotAttachmentData> data;
 
 }

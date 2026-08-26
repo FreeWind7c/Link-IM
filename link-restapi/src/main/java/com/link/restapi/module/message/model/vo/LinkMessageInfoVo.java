@@ -1,6 +1,7 @@
 package com.link.restapi.module.message.model.vo;
 
 import com.link.im.entity.base.BaseData;
+import com.link.im.entity.base.BaseMessage;
 import com.link.im.entity.message.DefaultMessageInfo;
 import com.link.im.entity.message.GroupMessageInfo;
 import com.link.im.entity.message.quote.QuoteRef;
@@ -45,6 +46,12 @@ public class LinkMessageInfoVo {
     }
 
     public static LinkMessageInfoVo from(GroupMessageInfo message) {
+        LinkMessageInfoVo vo = new LinkMessageInfoVo();
+        BeanUtils.copyProperties(message, vo);
+        return vo;
+    }
+
+    public static LinkMessageInfoVo from(BaseMessage message) {
         LinkMessageInfoVo vo = new LinkMessageInfoVo();
         BeanUtils.copyProperties(message, vo);
         return vo;
