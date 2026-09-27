@@ -3,10 +3,9 @@ package com.link.core.server;
 import com.link.core.codec.LinkPackDataDecoder;
 import com.link.core.codec.LinkPackDataEncoder;
 import com.link.core.config.LinkCoreConfig;
-import com.link.common.core.event.EventType;
 import com.link.core.event.dispatcher.LinkEventDispatcher;
+import com.link.core.handler.security.ConnectionRateLimitHandler;
 import com.link.core.handler.TcpHandlerInitializer;
-import com.link.core.session.facotry.DefaultChannelSessionFactory;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelOption;
@@ -20,8 +19,6 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
-
-import java.util.Arrays;
 
 /**
  * @Author: 无敌代码写手
@@ -52,6 +49,12 @@ public class DefaultServer implements ApplicationRunner {
     @Autowired
     private LinkPackDataEncoder linkPackDataEncoder;
 
+    @Autowired
+    private GracefulShutdownService gracefulShutdownService;
+
+    private ChannelFuture serverChannelFuture;
+
+    private ConnectionRateLimitHandler connectionRateLimitHandler;
 
 
     public void init(){
@@ -72,6 +75,19 @@ public class DefaultServer implements ApplicationRunner {
 
 
     private void initSeverBootStrap(EventLoopGroup bossGroup, EventLoopGroup workerGroup, ServerBootstrap bootstrap) {
+
+        // 🔑 创建连接限流器（@Sharable，全局单例）
+        if (config.isConnectionRateLimitEnabled() && config.getConnectionRateLimitPerSecond() > 0) {
+            connectionRateLimitHandler = new ConnectionRateLimitHandler(
+                config.getConnectionRateLimitPerSecond(),
+                config.isConnectionRateLimitBlock(),
+                config.getConnectionRateLimitMaxWait()
+            );
+            log.info("连接限流已启用：每秒 {} 个连接", config.getConnectionRateLimitPerSecond());
+        } else {
+            log.warn("连接限流未启用，高并发重连可能导致服务雪崩");
+        }
+
         bootstrap.group(bossGroup,workerGroup)
                 .channel(NioServerSocketChannel.class)
                 .option(ChannelOption.SO_REUSEADDR,this.config.isSoReuseAddr())
@@ -79,20 +95,46 @@ public class DefaultServer implements ApplicationRunner {
                 .option(ChannelOption.SO_RCVBUF,this.config.getSoRcvBuf())
                 .option(ChannelOption.TCP_NODELAY,this.config.isTcpNoDelay())
                 .localAddress(this.config.getPort())
-                .childHandler(new TcpHandlerInitializer(this.config, this.linkEventDispatcher, this.linkPackDataDecoder, this.linkPackDataEncoder));
+                .childHandler(new TcpHandlerInitializer(
+                    this.config,
+                    this.linkEventDispatcher,
+                    this.linkPackDataDecoder,
+                    this.linkPackDataEncoder,
+                    this.connectionRateLimitHandler  // 传入限流器
+                ));
     }
 
     @PreDestroy
     public void shutdown() {
-        if (bossGroup != null)   bossGroup.shutdownGracefully();
-        if (workerGroup != null) workerGroup.shutdownGracefully();
+
+        try {
+            // 1. 停止接受新连接
+            if (serverChannelFuture != null && serverChannelFuture.channel().isActive()) {
+                log.info("停止接受新连接...");
+                serverChannelFuture.channel().close().sync();
+            }
+
+            // 2. 通知所有在线用户并等待自然断开
+            if (gracefulShutdownService != null) {
+                log.info("通知用户下线");
+                gracefulShutdownService.performGracefulShutdown();
+            }
+
+        } catch (Exception e) {
+            log.error("优雅停服过程异常", e);
+        } finally {
+            // 3. 关闭 Netty 线程池
+            if (bossGroup != null)   bossGroup.shutdownGracefully();
+            if (workerGroup != null) workerGroup.shutdownGracefully();
+        }
     }
+
 
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
         init();
-        ChannelFuture future = bootstrap.bind().sync();
+        serverChannelFuture = bootstrap.bind().sync();
         log.info("Link IM Server started on port " + config.getPort());
 
     }

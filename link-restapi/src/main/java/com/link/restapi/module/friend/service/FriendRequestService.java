@@ -1,7 +1,7 @@
 package com.link.restapi.module.friend.service;
 
-import com.link.im.mongo.BasePlatFormMongoService;
-import com.link.im.entity.friend.FriendRequest;
+import com.link.base.mongo.BasePlatFormMongoService;
+import com.link.base.entity.friend.FriendRequest;
 import org.springframework.stereotype.Component;
 
 /**

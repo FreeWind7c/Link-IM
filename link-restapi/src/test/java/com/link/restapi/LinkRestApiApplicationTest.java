@@ -1,8 +1,8 @@
 package com.link.restapi;
 
 import com.link.common.constants.wallet.WalletTopUpStatusKeys;
-import com.link.im.entity.wallet.WalletTopUp;
-import com.link.im.util.MD5Util;
+import com.link.base.entity.wallet.WalletTopUp;
+import com.link.common.util.MD5Util;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +24,7 @@ public class LinkRestApiApplicationTest {
 
     @Test
     public void unit1(){
-        String userId = "6a6a3c2404b78eb884c0f776";
+        String userId = "6a8c17094fc2ae46104a352d";
         WalletTopUp walletTopUp = new WalletTopUp();
         walletTopUp.setUserId(new ObjectId(userId));
         walletTopUp.setAmount(new BigDecimal(500));

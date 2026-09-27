@@ -1,7 +1,7 @@
 package com.link.restapi.module.user.model.dto;
 
-import com.link.im.util.MD5Util;
-import com.link.im.entity.user.UserInfo;
+import com.link.common.util.MD5Util;
+import com.link.base.entity.user.UserInfo;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -8,7 +8,7 @@ import com.link.restapi.enums.BaseEnum;
  */
 public enum RedPacketApiCode implements BaseEnum {
 
-    WALLET_NOT_EXIST(14000,"钱包不存在"),
+    WALLET_NOT_EXIST(14000,"钱包不存在,请先开通钱包功能"),
     PAYMENT_PASSWORD_ERROR(14001,"支付密码错误" ),
     WALLET_INSUFFICIENT_BALANCE(14002,"钱包余额不足" ),
     RED_PACKET_NOT_EXIST(14003,"红包不存在" ),
@@ -23,6 +23,8 @@ public enum RedPacketApiCode implements BaseEnum {
     WALLET_DISABLED(14012,"钱包已被禁用" ),
     CHAT_NOT_JOINED(14013,"你不在该会话中，无法发送红包" ),
     GRAB_BUSY(14014,"操作太频繁，请稍后再试" );
+
+
 
 
     private int code;

@@ -1,15 +1,14 @@
 package com.link.restapi.push;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.link.base.entity.wallet.WalletWithdraw;
 import com.link.common.core.event.EventType;
 import com.link.common.core.mq.FanoutPushCommand;
 import com.link.common.core.mq.DirectPushCommand;
-import com.link.common.core.mq.PushMqConst;
 import com.link.common.constants.publisher.PublisherRouterKeys;
-import com.link.im.entity.wallet.*;
-import com.link.im.vo.DefaultMessageVO;
-import com.link.im.vo.GroupMessageVO;
-import com.link.im.vo.base.BaseMessageVO;
+import com.link.base.vo.DefaultMessageVO;
+import com.link.base.vo.GroupMessageVO;
+import com.link.base.vo.base.BaseMessageVO;
 import com.link.restapi.module.wallet.service.WalletInfoService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -69,14 +68,14 @@ public class RemotePushPublisher {
         try {
             String payloadType = payload.getClass().getName();
             String payloadJson = objectMapper.writeValueAsString(payload);
-            log.info("发送事件消息：" + payloadJson);
+
             FanoutPushCommand cmd = new FanoutPushCommand()
                     .setUserId( userIds)
                     .setEventType(eventType.getAction())
                     .setPayloadType(payloadType)
                     .setPayloadJson(payloadJson);
             // fanout 交换机忽略 routing key，传空串即可
-            this.rabbitTemplate.convertAndSend(PushMqConst.LINK_EVENT_EXCHANGE, PushMqConst.DIRECT_EVENT_PUSH_KEY, cmd);
+            this.rabbitTemplate.convertAndSend(PublisherRouterKeys.LINK_EVENT_EXCHANGE, PublisherRouterKeys.DIRECT_EVENT_PUSH_KEY, cmd);
         } catch (Exception e) {
             // 推送是「尽力而为」的在线态：发布失败不应阻断主业务，记日志即可
             log.error("批量发布推送指令失败 userIds={}, eventType={}", userIds, eventType, e);
@@ -87,12 +86,12 @@ public class RemotePushPublisher {
         if (type== 1)
         {
             DefaultMessageVO message = (DefaultMessageVO) baseMessage ;
-            push(PublisherRouterKeys.MESSAGE_EXCHANGE,PublisherRouterKeys.DEFAULT_MESSAGE_STORAGE_ROUTING_KEY,message);
+            push(PublisherRouterKeys.MESSAGE_STORAGE_EXCHANGE,PublisherRouterKeys.DEFAULT_MESSAGE_STORAGE_ROUTING_KEY,message);
         }
         else
         {
             GroupMessageVO message = (GroupMessageVO) baseMessage;
-            push(PublisherRouterKeys.MESSAGE_EXCHANGE,PublisherRouterKeys.GROUP_MESSAGE_STORAGE_ROUTING_KEY,message);
+            push(PublisherRouterKeys.MESSAGE_STORAGE_EXCHANGE,PublisherRouterKeys.GROUP_MESSAGE_STORAGE_ROUTING_KEY,message);
         }
     }
 }

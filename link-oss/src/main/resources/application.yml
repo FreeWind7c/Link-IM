@@ -2,6 +2,26 @@
 server:
   port: ${API_PORT:9000}
 
+# 监控端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      instance: ${HOSTNAME:unknown}
+    export:
+      prometheus:
+        enabled: true
+
 spring:
   application:
     name: link-oss

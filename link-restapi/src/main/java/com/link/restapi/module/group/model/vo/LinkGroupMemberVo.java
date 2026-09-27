@@ -1,7 +1,7 @@
 package com.link.restapi.module.group.model.vo;
 
-import com.link.im.entity.group.GroupMember;
-import com.link.im.entity.user.UserInfo;
+import com.link.base.entity.group.GroupMember;
+import com.link.base.entity.user.UserInfo;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.bson.types.ObjectId;

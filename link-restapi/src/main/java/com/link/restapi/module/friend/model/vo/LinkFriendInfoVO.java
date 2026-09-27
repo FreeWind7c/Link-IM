@@ -1,7 +1,7 @@
 package com.link.restapi.module.friend.model.vo;
 
-import com.link.im.entity.friend.FriendInfo;
-import com.link.im.entity.user.UserInfo;
+import com.link.base.entity.friend.FriendInfo;
+import com.link.base.entity.user.UserInfo;
 import lombok.Data;
 import lombok.experimental.Accessors;
 

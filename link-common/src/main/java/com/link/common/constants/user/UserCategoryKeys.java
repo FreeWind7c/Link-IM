@@ -10,6 +10,6 @@ public class UserCategoryKeys {
 
     public static int VIP = 2;
 
-    public static int BOOT = 3;
+    public static int BOT = 3;
 
 }

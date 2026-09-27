@@ -71,6 +71,8 @@ public class LinkCoreConfig {
 
     private int queueCapacity = 500;
 
+    private boolean partitionConsumption = true;
+
     /**
      * 单个会话允许的在飞重活数上限。
      *
@@ -115,6 +117,22 @@ public class LinkCoreConfig {
     private int maxFrameLength = 2 * 1024 * 1024;
 
     private ConnectionSecurityManager connectionSecurityManager = new ConnectionSecurityManager(this);
+
+    // ---- 连接限流配置 ----
+
+    /** 是否启用连接限流 */
+    private boolean connectionRateLimitEnabled = true;
+
+    /** 每秒允许的新连接数（0表示不限制） */
+    private double connectionRateLimitPerSecond = 1;
+
+    /** 连接限流是否阻塞等待（false=立即拒绝，true=排队等待） */
+    private boolean connectionRateLimitBlock = false;
+
+    /** 连接限流最大等待时间（毫秒），仅在 connectionRateLimitBlock=true 时有效 */
+    private long connectionRateLimitMaxWait = 1000;
+
+
 
 
 

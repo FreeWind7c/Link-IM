@@ -27,8 +27,7 @@ public class GroupInfoController {
 
     @Autowired
     private GroupMemberService groupMemberService;
-
-
+    
 
     @PostMapping("/remove-member")
     public ApiResult removeMember(@RequestBody LinkRemoveGroupMemberDto dto){

@@ -51,8 +51,7 @@ public class LinkEventDispatcher {
         }
         EventHandler eventHandler = this.factory.getEventHandler(eventType);
         if (eventHandler == null)
-            return;
-//            throw new RuntimeException("未知事件:"+ eventType.getAction());
+            throw new RuntimeException("未知事件:"+ eventType.getAction());
         // ByteBuf → byte[]：序列化器只认字节数组（已与 netty 解耦），这里在接入层完成读取
         byte[] body = new byte[buf.readableBytes()];
         buf.readBytes(body);

@@ -1,9 +1,9 @@
 package com.link.restapi.module.chat.model.vo;
 
-import com.link.im.entity.chat.ChatSessionMember;
-import com.link.im.entity.chat.ChatSession;
-import com.link.im.entity.group.GroupInfo;
-import com.link.im.entity.user.UserInfo;
+import com.link.base.entity.chat.ChatSessionMember;
+import com.link.base.entity.chat.ChatSession;
+import com.link.base.entity.group.GroupInfo;
+import com.link.base.entity.user.UserInfo;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -102,6 +102,6 @@ public class LinkChatSessionVo {
 
     public static LinkChatSessionVo fromVo(ChatSession session) {
         LinkChatSessionVo vo = new LinkChatSessionVo();
-//        vo.set
+        return vo;
     }
 }

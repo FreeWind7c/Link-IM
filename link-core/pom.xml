@@ -5,7 +5,7 @@
 
     <parent>
         <groupId>com.link</groupId>
-        <artifactId>cc-link</artifactId>
+        <artifactId>link-im</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
@@ -45,6 +45,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- Guava：用于连接限流（RateLimiter） -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>32.1.2-jre</version>
         </dependency>
     </dependencies>
 

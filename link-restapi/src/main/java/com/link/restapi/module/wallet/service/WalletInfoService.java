@@ -1,14 +1,14 @@
 package com.link.restapi.module.wallet.service;
 
+import com.link.base.entity.wallet.*;
 import com.link.common.pager.Pager;
 
 import com.link.common.constants.wallet.WalletFlowBizTypeKeys;
 import com.link.common.constants.wallet.WalletInOutKeys;
 import com.link.common.constants.wallet.WalletTopUpStatusKeys;
-import com.link.im.entity.wallet.*;
 import com.link.restapi.enums.gloabl.GlobalCode;
 import com.link.restapi.enums.wallet.WalletApiCode;
-import com.link.im.mongo.BasePlatFormMongoService;
+import com.link.base.mongo.BasePlatFormMongoService;
 import com.link.restapi.utils.ApiResult;
 import com.link.restapi.module.wallet.model.dto.LinkMyselfWalletDto;
 import com.link.restapi.module.wallet.model.dto.LinkWalletTopUpDto;

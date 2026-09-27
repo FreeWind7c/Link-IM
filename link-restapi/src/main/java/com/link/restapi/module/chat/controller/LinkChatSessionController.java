@@ -1,6 +1,6 @@
 package com.link.restapi.module.chat.controller;
 
-import com.link.im.entity.message.DefaultMessageInfo;
+import com.link.base.entity.message.DefaultMessageInfo;
 import com.link.restapi.utils.ApiResult;
 import com.link.restapi.module.chat.model.dto.LinkCreateChatDto;
 import com.link.restapi.module.chat.model.dto.LinkPullChatDTO;

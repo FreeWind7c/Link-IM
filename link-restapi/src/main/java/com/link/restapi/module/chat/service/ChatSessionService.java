@@ -1,12 +1,12 @@
 package com.link.restapi.module.chat.service;
 
 import com.link.common.util.id.ChatIdGenerator;
-import com.link.im.entity.chat.ChatSessionMember;
-import com.link.im.entity.group.GroupInfo;
+import com.link.base.entity.chat.ChatSessionMember;
+import com.link.base.entity.group.GroupInfo;
 import com.link.restapi.enums.gloabl.GlobalCode;
-import com.link.im.mongo.BasePlatFormMongoService;
-import com.link.im.entity.chat.ChatSession;
-import com.link.im.entity.user.UserInfo;
+import com.link.base.mongo.BasePlatFormMongoService;
+import com.link.base.entity.chat.ChatSession;
+import com.link.base.entity.user.UserInfo;
 import com.link.restapi.utils.ApiResult;
 import com.link.restapi.module.chat.model.dto.LinkCreateChatDto;
 import com.link.restapi.module.chat.model.dto.LinkPullChatDTO;
@@ -142,6 +142,7 @@ public class ChatSessionService extends BasePlatFormMongoService<ChatSession> {
                 .returnNew(true);
         this.findAndModify(eq,update,options);
         this.getMongoTemplate().insert(Arrays.asList(m1,m2),ChatSessionMember.class);
+        System.out.println("1");
         return ApiResult.success().setData(chatId);
     }
 

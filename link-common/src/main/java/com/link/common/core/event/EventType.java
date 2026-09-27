@@ -31,7 +31,10 @@ public enum  EventType {
 
     USER_EXIT((short) 1021),
     UPDATE_MESSAGE((short) 1022),
-    BOT_MESSAGE((short) 1023);
+    BOT_MESSAGE((short) 1023),
+
+    /** 服务器维护通知，用于优雅停服时通知客户端 */
+    SERVER_MAINTENANCE((short) 1024);
 
 
 

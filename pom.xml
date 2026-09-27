@@ -12,25 +12,21 @@
     </parent>
 
     <groupId>com.link</groupId>
-    <artifactId>cc-link</artifactId>
+    <artifactId>link-im</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>cc-link</name>
+    <name>link-im</name>
     <description>Link IM —— 模块化多模块工程（common / im / core / restapi / consumer / server-starter）</description>
 
     <!-- 子模块聚合。构建顺序由 Maven 按依赖关系自动推导：common → im → core/restapi/consumer → server-starter -->
     <modules>
+        <module>link-base</module>
         <module>link-common</module>
-        <module>link-im</module>
+        <module>link-dispatcher</module>
         <module>link-core</module>
         <module>link-restapi</module>
-
-        <module>link-consumer</module>
         <module>link-oss</module>
         <module>link-gateway</module>
-        <module>link-server-starter</module>
-
-        <!-- 自研注册中心：父模块聚合 server + client -->
         <module>link-register</module>
     </modules>
 
@@ -81,6 +77,16 @@
             </dependency>
             <dependency>
                 <groupId>com.link</groupId>
+                <artifactId>link-base</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.link</groupId>
+                <artifactId>link-dispatcher</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.link</groupId>
                 <artifactId>link-im</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -127,7 +133,7 @@
         </dependencies>
     </dependencyManagement>
 
-    <!-- 所有子模块共有的依赖：lombok（编译期）+ 测试 -->
+    <!-- 所有子模块共有的依赖：lombok（编译期）+ 测试 + 监控 -->
     <dependencies>
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -139,6 +145,16 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+        <!-- Actuator：暴露健康检查与 metrics 端点 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!-- Prometheus 指标收集器：Micrometer 将 Spring Boot metrics 转换为 Prometheus 格式 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
     </dependencies>
 

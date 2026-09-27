@@ -91,4 +91,13 @@ public class DefaultChannelSessionManager implements LinkSessionManager {
             return inner.isEmpty() ? null : inner;
         });
     }
+
+    @Override
+    public List<LinkSession> getAllSessions() {
+        List<LinkSession> allSessions = new ArrayList<>();
+        sessionMap.values().forEach(inner -> {
+            allSessions.addAll(inner.values());
+        });
+        return allSessions;
+    }
 }

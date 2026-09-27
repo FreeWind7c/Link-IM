@@ -1,6 +1,6 @@
 package com.link.restapi.cron;
 
-import com.link.im.entity.wallet.WalletWithdraw;
+import com.link.base.entity.wallet.WalletWithdraw;
 import com.link.restapi.module.wallet.service.WalletInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;

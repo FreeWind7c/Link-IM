@@ -2,13 +2,36 @@
 server:
   port: ${API_PORT:8080}
 
+# 监控端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        # 暴露 health, info, prometheus 等端点（生产环境建议通过防火墙限制访问）
+        include: health,info,prometheus,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      # 为所有指标添加应用标识，便于 Prometheus 中区分不同服务
+      application: ${spring.application.name}
+      instance: ${HOSTNAME:unknown}
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
 # 腾讯云 TRTC / IM 配置（群通话用）
 link:
   trtc:
-    sdk-app-id: ${TRTC_SDK_APP_ID:1600154619}
+    sdk-app-id: ${TRTC_SDK_APP_ID:1600159836}
     # 应用密钥：必须通过环境变量注入，切勿把真实值写进本文件提交到仓库。
     # 它一旦泄露，任何人都能签出任意 userID 的凭证，以他人身份登录腾讯云 IM。
-    secret-key: ${TRTC_SECRET_KEY:c01c265b2a167269ce1552f7c44590ca4b272ad3d4c3b863e07721dae486ef42}
+    secret-key: ${TRTC_SECRET_KEY:0ec68ecb2350650c508a3320fa12e36389788159204b4060fa764dd1a467b42f}
     # UserSig 有效期（秒）。签发后无法撤销，时长即风险窗口，默认 24 小时。
     expire-seconds: ${TRTC_EXPIRE_SECONDS:86400}
 
@@ -23,25 +46,15 @@ spring:
         enabled: false
   data:
     redis:
-      host: ${REDIS_HOST:127.0.0.1}
+      host: ${REDIS_HOST:175.178.245.39}
+      password: K9mP#xL2@wT6yU5zB
     mongodb:
-      # 让 @Indexed / @CompoundIndex 在启动时自动建索引。默认是 false，
-      # 不开的话红包那几个索引压根不存在——biz_detail_id 挡不住重复扣款、
-      # (packet_id,user_id) 挡不住一人多领，全靠应用层「碰运气」。
-      # 代价是启动时多一轮 createIndex（幂等，已存在即空操作）。
       auto-index-creation: true
       representation:
-        # BigDecimal 的落库表示法。默认 unspecified = 沿用老规矩存成字符串，
-        # 而钱包余额、红包剩余金额全靠 $inc 原子加减：
-        #   Update.inc("balance", BigDecimal) 发出去是 $inc:{balance:"500"}
-        #   -> 服务端报「Cannot increment with non-numeric argument」
-        #   Criteria.gte(amount) 也退化成字典序比较，"9" >= "10" 成立，余额校验形同虚设
-        # 注意：只改这里不够，存量文档里这些字段的 BSON 类型仍是 string，
-        # 必须先跑一次 docs/mongo/migrate-bigdecimal-to-decimal128.js 才能上线。
         big-decimal: decimal128
   # 推送发布端：HTTP 动作触发的在线推送发到 RabbitMQ，由持连的 Netty 进程消费下发。
   rabbitmq:
-    host: ${RABBITMQ_HOST:42.193.160.18}
+    host: ${RABBITMQ_HOST:175.178.245.39}
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:admin}
     password: ${RABBITMQ_PASSWORD:Rq9#mW2$xK7@nP4vL6#jT8!s}
@@ -52,10 +65,5 @@ spring:
     template:
       mandatory: true
   mongodb:
-    # 本地开发直连：directConnection=true 让驱动只连下面这个地址，不做副本集拓扑发现。
-    # 必须如此——副本集成员在 rs.conf() 里登记的是云服务器内网地址 172.16.0.8，
-    # 若进入副本集模式（带 replicaSet 参数），驱动会转去连内网地址，本地不可达 → Connect timed out。
-    # 注意：1) 密码里的 # 转义为 %23  2) /im 是业务库，authSource=admin 是认证库，两者不同
-    # 取舍：直连失去故障自动切换；且需保证连的是 PRIMARY 节点（27017），否则写操作/事务会失败。
-    uri: ${MONGO_URI:mongodb://admin:f3Kx%239mPqL2vNzR7wYcJ4sBt@42.193.160.18:27017/im?authSource=admin&directConnection=true&serverSelectionTimeoutMS=20000&connectTimeoutMS=20000}
+    uri: ${MONGO_URI:mongodb://admin:f3Kx#9mPqL2vNzR7wYcJ4sBt@175.178.245.39:27017,175.178.245.39:27018,175.178.245.39:27019/im?replicaSet=rs0&authSource=admin&readPreference=secondaryPreferred&serverSelectionTimeoutMS=3000&connectTimeoutMS=3000&socketTimeoutMS=5000&maxPoolSize=200&minPoolSize=20}
 

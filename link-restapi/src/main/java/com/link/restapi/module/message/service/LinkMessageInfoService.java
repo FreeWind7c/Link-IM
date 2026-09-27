@@ -1,15 +1,15 @@
 package com.link.restapi.module.message.service;
 
-import com.link.im.entity.base.BaseMessage;
-import com.link.im.entity.message.GroupMessageInfo;
-import com.link.im.entity.chat.ChatSessionMember;
-import com.link.im.entity.message.type.MessageType;
-import com.link.im.entity.redpack.RedPacket;
-import com.link.im.entity.rtc.TrtcCallInfo;
+import com.link.base.entity.base.BaseMessage;
+import com.link.base.entity.message.GroupMessageInfo;
+import com.link.base.entity.chat.ChatSessionMember;
+import com.link.base.entity.message.type.MessageType;
+import com.link.base.entity.redpack.RedPacket;
+import com.link.base.entity.rtc.TrtcCallInfo;
+import com.link.base.provider.MessageData;
 import com.link.restapi.enums.gloabl.GlobalCode;
-import com.link.im.mongo.BasePlatFormMongoService;
-import com.link.im.entity.message.DefaultMessageInfo;
-import com.link.im.service.MessageData;
+import com.link.base.mongo.BasePlatFormMongoService;
+import com.link.base.entity.message.DefaultMessageInfo;
 import com.link.restapi.utils.ApiResult;
 import com.link.restapi.module.message.model.dto.LinkAroundMessageDto;
 import com.link.restapi.module.message.model.dto.LinkCompleteMessageDto;
@@ -55,7 +55,7 @@ public class LinkMessageInfoService extends BasePlatFormMongoService<DefaultMess
         }
 
         Query eq = eq(criteria);
-        eq.with(Sort.by(Sort.Direction.DESC,col(BaseMessage::getTimestamp)));
+        eq.with(Sort.by(Sort.Direction.DESC,col(BaseMessage::getSeq)));
         eq.skip(dto.getSkip());
         eq.limit(dto.getLimit());
 

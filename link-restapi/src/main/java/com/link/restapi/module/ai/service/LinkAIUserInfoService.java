@@ -1,10 +1,9 @@
 package com.link.restapi.module.ai.service;
 
-import com.link.im.entity.user.UserInfo;
-import com.link.im.mongo.BasePlatFormMongoService;
+import com.link.base.entity.user.UserInfo;
+import com.link.base.mongo.BasePlatFormMongoService;
 import com.link.restapi.module.ai.model.dto.LinkAIQueryUserDTO;
 import com.link.restapi.module.user.model.vo.LinkUserInfoVO;
-import com.link.restapi.module.user.service.UserInfoService;
 import com.link.restapi.utils.ApiResult;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;

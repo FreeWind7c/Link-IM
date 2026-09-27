@@ -26,4 +26,7 @@ public interface LinkSessionManager {
     void removeSession(LinkSession session);
 
     List<Channel> getChannel(String userId);
+
+    /** 获取所有在线会话（用于优雅停服时广播消息） */
+    List<LinkSession> getAllSessions();
 }

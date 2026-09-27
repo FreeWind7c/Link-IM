@@ -1,12 +1,9 @@
 package com.link.restapi.module.friend.model.vo;
 
-import com.link.im.entity.friend.FriendRequest;
-import com.link.im.entity.user.UserInfo;
+import com.link.base.entity.friend.FriendRequest;
+import com.link.base.entity.user.UserInfo;
 import lombok.Data;
 import lombok.experimental.Accessors;
-import org.bson.types.ObjectId;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Field;
 
 /**
  * @Author: 无敌代码写手

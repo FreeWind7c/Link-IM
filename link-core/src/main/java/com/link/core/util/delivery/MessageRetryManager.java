@@ -1,4 +1,4 @@
-package com.link.util.delivery;
+package com.link.core.util.delivery;
 
 import io.netty.channel.Channel;
 import io.netty.util.HashedWheelTimer;

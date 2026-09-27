@@ -2,11 +2,11 @@ package com.link.restapi.module.wallet.controller;
 
 import com.link.common.pager.Pager;
 import com.link.common.constants.wallet.WalletTopUpStatusKeys;
-import com.link.im.entity.wallet.WalletFlow;
-import com.link.im.entity.wallet.WalletInfo;
-import com.link.im.entity.wallet.WalletTopUp;
+import com.link.base.entity.wallet.WalletFlow;
+import com.link.base.entity.wallet.WalletInfo;
+import com.link.base.entity.wallet.WalletTopUp;
 import com.link.restapi.utils.ApiResult;
-import com.link.im.util.MD5Util;
+import com.link.common.util.MD5Util;
 import com.link.restapi.module.wallet.model.dto.*;
 import com.link.restapi.module.wallet.model.vo.LinkMyselfWalletInfoVo;
 import com.link.restapi.module.wallet.service.WalletInfoService;
@@ -54,9 +54,7 @@ public class WalletInfoController {
         walletInfo.setUserId(new ObjectId(dto.getUserId()))
                 .setBalance(BigDecimal.ZERO)
                 .setDisabled(false)
-                // 支付密码只存摘要，和登录密码（LinkUserRegisterDTO）保持同一套做法。
-                // 明文入库意味着任何一次库泄露 = 所有人的支付密码泄露
-                .setPassword(MD5Util.encrypt(dto.getPassword()))
+                .setPassword(dto.getPassword())
                 .setCreatedTime(walletInfoService.now());
         this.mongoTemplate.insert(walletInfo);
         Pager<WalletFlow> pager = new Pager<WalletFlow>().setList(null).setHasMore(false).setNextCursor(null);

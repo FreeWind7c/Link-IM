@@ -12,6 +12,10 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class LinkQueryChatSessionDTO {
 
-    private String chatId;
+    private String userId;
+
+    private String nickname;
+
+    private int sessionType;
 
 }

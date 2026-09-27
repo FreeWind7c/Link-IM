@@ -1,7 +1,7 @@
 package com.link.restapi.module.trtc.controller;
 
 import com.alibaba.fastjson.JSONObject;
-import com.link.core.util.seq.MessageSeqAllocator;
+import com.link.base.seq.MessageSeqAllocator;
 import com.link.restapi.utils.ApiResult;
 import com.link.restapi.module.trtc.model.dto.LinkTrtcCallDTO;
 import com.link.restapi.module.trtc.model.dto.LinkTrtcRoomIdDTO;
@@ -76,7 +76,7 @@ public class LinkTrtcController {
                                       HttpServletRequest request, HttpServletResponse response) throws IOException {
         byte[] bodyBytes = request.getInputStream().readAllBytes();
         String rawBody = new String(bodyBytes, StandardCharsets.UTF_8);
-//        log.info("trtc call-back -> {}" , rawBody);
+        log.info("trtc call-back -> {}" , rawBody);
         response.setStatus(200);
         JSONObject data = JSONObject.parseObject(rawBody);
         JSONObject eventInfo = data.getJSONObject("EventInfo");

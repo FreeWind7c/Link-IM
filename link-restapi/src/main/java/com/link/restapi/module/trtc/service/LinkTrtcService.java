@@ -2,22 +2,21 @@ package com.link.restapi.module.trtc.service;
 
 import com.alibaba.fastjson.JSONObject;
 import com.link.common.core.event.EventType;
-import com.link.core.util.seq.MessageSeqAllocator;
+import com.link.base.seq.MessageSeqAllocator;
 import com.link.common.constants.trtc.TrtcCallStatusCode;
-import com.link.im.entity.base.BaseData;
-import com.link.im.entity.data.CallData;
-import com.link.im.entity.data.NoticeData;
-import com.link.im.entity.data.notice.DefaultNoticeData;
-import com.link.im.entity.message.DefaultMessageInfo;
-import com.link.im.entity.message.type.MessageType;
-import com.link.im.entity.rtc.TrtcCallInfo;
-import com.link.im.factory.LinkBaseDataFactory;
-import com.link.im.mongo.BasePlatFormMongoService;
-import com.link.im.service.LinkRedisService;
+import com.link.base.entity.base.BaseData;
+import com.link.base.entity.data.CallData;
+import com.link.base.entity.data.NoticeData;
+import com.link.base.entity.message.DefaultMessageInfo;
+import com.link.base.entity.message.type.MessageType;
+import com.link.base.entity.rtc.TrtcCallInfo;
+import com.link.base.facotry.LinkBaseDataFactory;
+import com.link.base.mongo.BasePlatFormMongoService;
+import com.link.base.manager.CacheDataManager;
 import com.link.restapi.utils.ApiResult;
-import com.link.im.vo.DefaultMessageVO;
-import com.link.im.vo.GroupMessageVO;
-import com.link.im.vo.base.BaseMessageVO;
+import com.link.base.vo.DefaultMessageVO;
+import com.link.base.vo.GroupMessageVO;
+import com.link.base.vo.base.BaseMessageVO;
 import com.link.restapi.module.trtc.model.dto.LinkTrtcCallDTO;
 import com.link.restapi.module.trtc.model.dto.LinkTrtcRoomIdDTO;
 import com.link.restapi.push.RemotePushPublisher;
@@ -44,7 +43,7 @@ public class LinkTrtcService extends BasePlatFormMongoService<TrtcCallInfo> {
     private RemotePushPublisher pushPublisher;
 
     @Autowired
-    private LinkRedisService redisService;
+    private CacheDataManager cacheManager;
 
     @Autowired
     private LinkBaseDataFactory factory;
@@ -83,7 +82,7 @@ public class LinkTrtcService extends BasePlatFormMongoService<TrtcCallInfo> {
                 .setData(noticeData.toJson())
                 .setBaseData(noticeData)
                 .setTimestamp(now());
-        Set<String> memberIds = redisService.getChatMemberIds(call.getChatId());
+        Set<String> memberIds = cacheManager.getGroupMemberId(call.getReceiverId().toHexString());
         this.pushPublisher.messageStorage(message, call.isGroupCall() ? 2 : 1);
         this.pushPublisher.push(
                 !call.isGroupCall() ? EventType.DEFAULT_MESSAGE : EventType.GROUP_MESSAGE,
@@ -112,7 +111,7 @@ public class LinkTrtcService extends BasePlatFormMongoService<TrtcCallInfo> {
         BaseData data = createBaseData(dto,roomId);
         this.insert(trtcCallInfo);
 
-        Set<String> memberIds = redisService.getChatMemberIds(dto.getChatId());
+        Set<String> memberIds = cacheManager.getGroupMemberId(dto.getRcvId());
         BaseMessageVO message = createMessage(dto, data);
 
         this.pushPublisher.messageStorage(message,dto.getType());
@@ -191,7 +190,7 @@ public class LinkTrtcService extends BasePlatFormMongoService<TrtcCallInfo> {
         DefaultMessageVO vo = message.toVo();
         CallData data = CallData.toData(result);
         vo.setData(data.toJson()).setBaseData(data);
-        Set<String> memberIds = redisService.getChatMemberIds(call.getChatId());
+        Set<String> memberIds = cacheManager.getGroupMemberId(call.getReceiverId().toHexString());
 
         this.pushPublisher.push(EventType.DEFAULT_MESSAGE,memberIds,vo);
         return ApiResult.success();

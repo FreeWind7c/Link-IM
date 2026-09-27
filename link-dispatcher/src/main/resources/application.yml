@@ -1,0 +1,81 @@
+server:
+  port: ${SERVER_PORT:8888}
+
+link:
+  cache:
+    change-stream:
+      enabled: ${CHANGE_STREAM_ENABLED:true}
+      database: ${MONGO_DATABASE:im}
+      # 多副本部署必须保持 true：否则各节点会争着写同一个 resume token 互相覆盖
+      leader-election: true
+      # delete 事件默认不带文档内容，开启前需先给集合建 pre-image（MongoDB 6.0+）
+      pre-image: ${CHANGE_STREAM_PRE_IMAGE:true}
+  netty:
+    enabled: true
+    port: ${NETTY_PORT:8080}
+    boss-threads: ${BOSS_THREADS:1}
+    worker-threads: ${WORKER_THREADS:8}
+
+  trtc:
+    sdk-app-id: ${TRTC_SDK_APP_ID:1600154619}
+    secret-key: ${TRTC_SECRET_KEY:c01c265b2a167269ce1552f7c44590ca4b272ad3d4c3b863e07721dae486ef42}
+    expire-seconds: ${TRTC_EXPIRE_SECONDS:86400}
+
+spring:
+  application:
+    name: link-dispatcher
+
+  data:
+    redis:
+      host: ${REDIS_HOST:175.178.245.39}
+      password: K9mP#xL2@wT6yU5zB
+
+    mongodb:
+      auto-index-creation: true
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:175.178.245.39}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:admin}
+    password: ${RABBITMQ_PASSWORD:Rq9#mW2$xK7@nP4vL6#jT8!s}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    listener:
+      simple:
+        # 消费者重试机制配置（仅对 AUTO ACK 模式生效）
+        retry:
+          enabled: true
+          # 第1次重试延迟: 5秒
+          initial-interval: 5000
+          # 每次重试延迟倍数: 第2次=10秒, 第3次=20秒
+          multiplier: 2
+          # 最大重试延迟: 20秒
+          max-interval: 20000
+          # 最大重试次数: 3次（加上首次执行，共4次尝试）
+          max-retries: 3
+        default-requeue-rejected: false
+  mongodb:
+    uri: ${MONGO_URI:mongodb://admin:f3Kx#9mPqL2vNzR7wYcJ4sBt@175.178.245.39:27017,175.178.245.39:27018,175.178.245.39:27019/im?replicaSet=rs0&authSource=admin&readPreference=secondaryPreferred&serverSelectionTimeoutMS=3000&connectTimeoutMS=3000&socketTimeoutMS=5000&maxPoolSize=200&minPoolSize=20}
+
+logging:
+  level:
+    com.link: ${LOG_LEVEL:INFO}
+
+# 监控端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      instance: ${HOSTNAME:unknown}
+    export:
+      prometheus:
+        enabled: true

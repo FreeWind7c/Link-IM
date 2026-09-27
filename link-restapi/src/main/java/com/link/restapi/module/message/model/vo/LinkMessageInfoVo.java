@@ -1,10 +1,10 @@
 package com.link.restapi.module.message.model.vo;
 
-import com.link.im.entity.base.BaseData;
-import com.link.im.entity.base.BaseMessage;
-import com.link.im.entity.message.DefaultMessageInfo;
-import com.link.im.entity.message.GroupMessageInfo;
-import com.link.im.entity.message.quote.QuoteRef;
+import com.link.base.entity.base.BaseData;
+import com.link.base.entity.base.BaseMessage;
+import com.link.base.entity.message.DefaultMessageInfo;
+import com.link.base.entity.message.GroupMessageInfo;
+import com.link.base.entity.message.quote.QuoteRef;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.springframework.beans.BeanUtils;

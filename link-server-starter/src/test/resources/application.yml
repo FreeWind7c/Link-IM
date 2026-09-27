@@ -1,4 +1,0 @@
-# 测试环境：不启动 Netty 接入服务，避免 contextLoads 绑定端口导致测试不可重入
-link:
-  netty:
-    enabled: false

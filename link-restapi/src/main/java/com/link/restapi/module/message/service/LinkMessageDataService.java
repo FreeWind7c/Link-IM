@@ -1,23 +1,26 @@
 package com.link.restapi.module.message.service;
 
-import com.link.im.entity.base.BaseMessage;
-import com.link.im.entity.data.CallData;
-import com.link.im.entity.data.RedPacketData;
-import com.link.im.entity.message.DefaultMessageInfo;
-import com.link.im.entity.message.type.MessageType;
-import com.link.im.entity.redpack.RedPacket;
-import com.link.im.entity.rtc.TrtcCallInfo;
-import com.link.im.mongo.BasePlatFormMongoService;
-import com.link.im.service.MessageData;
+import com.link.base.entity.base.BaseMessage;
+import com.link.base.entity.data.CallData;
+import com.link.base.entity.data.RedPacketData;
+import com.link.base.entity.message.type.MessageType;
+import com.link.base.entity.redpack.RedPacket;
+import com.link.base.entity.redpack.RedPacketRecord;
+import com.link.base.entity.rtc.TrtcCallInfo;
+import com.link.base.mongo.BasePlatFormMongoService;
+
+import com.link.base.provider.MessageData;
 import com.link.restapi.module.message.model.vo.LinkMessageInfoVo;
 import org.bson.types.ObjectId;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -55,7 +58,13 @@ public class LinkMessageDataService extends BasePlatFormMongoService<MessageData
         {
             Map<ObjectId, ? extends MessageData> dataMap = map.get(MessageType.RED_PACK_MESSAGE.getType());
             RedPacket packet = (RedPacket) dataMap.get(item.getId());
-            RedPacketData data = RedPacketData.toData(packet);
+            Query query = new Query(Criteria.where("packet_id").is(packet.getId()));
+            query.fields().include("user_id");
+            List<RedPacketRecord> records = this.mongoTemplate.find(query, RedPacketRecord.class);
+            Set<String> userId = records.stream().map(v -> {
+                return v.getUserId().toHexString();
+            }).collect(Collectors.toSet());
+            RedPacketData data = RedPacketData.toData(packet, userId);
 
             vo.setData(data.toJson());
         }

@@ -1,18 +1,18 @@
 package com.link.restapi.cron;
 
-import com.google.gson.Gson;
 import com.link.common.core.event.EventType;
 import com.link.common.redis.RedisKeys;
 import com.link.common.constants.redpack.RedPacketStatusKeys;
 import com.link.common.constants.wallet.WalletFlowBizTypeKeys;
 import com.link.common.constants.wallet.WalletInOutKeys;
-import com.link.im.entity.data.RedPacketData;
-import com.link.im.entity.message.DefaultMessageInfo;
-import com.link.im.entity.message.GroupMessageInfo;
-import com.link.im.entity.redpack.RedPacket;
-import com.link.im.entity.wallet.WalletFlow;
-import com.link.im.entity.wallet.WalletInfo;
-import com.link.im.vo.base.BaseMessageVO;
+import com.link.base.entity.data.RedPacketData;
+import com.link.base.entity.message.DefaultMessageInfo;
+import com.link.base.entity.message.GroupMessageInfo;
+import com.link.base.entity.redpack.RedPacket;
+import com.link.base.entity.redpack.RedPacketRecord;
+import com.link.base.entity.wallet.WalletFlow;
+import com.link.base.entity.wallet.WalletInfo;
+import com.link.base.vo.base.BaseMessageVO;
 import com.link.restapi.module.redpack.service.RedPackService;
 import com.link.restapi.push.RemotePushPublisher;
 import com.mongodb.client.result.UpdateResult;
@@ -34,6 +34,8 @@ import org.springframework.util.CollectionUtils;
 import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 过期红包退款。
@@ -85,8 +87,10 @@ public class RedPacketCronService {
         List<RedPacket> packets = this.mongoTemplate.find(query, RedPacket.class);
         for (RedPacket packet : packets) {
             try {
-                log.info("过期红包:" + new Gson().toJson(packet));
-                RedPacket before = self.doExpire(packet, now);
+                List<RedPacketRecord> records = this.mongoTemplate.find(
+                        new Query(Criteria.where("packet_id").is(packet.getId())),
+                        RedPacketRecord.class);
+                RedPacket before = self.doExpire(packet, records,now);
                 if (before == null)
                     continue; // 没抢到翻转权（上一轮或另一个实例已处理），绝不重复退款
                 // ---------- 事务外后置：commit 之后再动 Redis 和 MQ ----------
@@ -100,17 +104,13 @@ public class RedPacketCronService {
         }
     }
 
-    /**
-     * 单个过期红包的退款事务：翻转状态、退钱、记流水，一起成或一起废。
-     *
-     * <p>不再更新消息的 data 字段：status 和 claimantIds 已从消息中移除，
-     * 前端通过 UPDATE_RED_PACKET 事件实时同步状态。
-     *
-     * @return 翻转<b>之前</b>的红包文档；返回 null 表示没抢到翻转权，本次什么都没做
-     */
+
     @Transactional(rollbackFor = Exception.class)
-    public RedPacket doExpire(RedPacket packet, long now) {
-        Query cas = new Query(Criteria.where("_id").is(packet.getId())
+    public RedPacket doExpire(RedPacket packet, List<RedPacketRecord> records, long now) {
+        ObjectId packetId = packet.getId();
+
+        // ① 先翻转状态（抢占处理权）
+        Query cas = new Query(Criteria.where("_id").is(packetId)
                 .and("status").is(RedPacketStatusKeys.IN_PROGRESS));
         Update flip = new Update().set("status", RedPacketStatusKeys.REFUND);
         RedPacket before = this.mongoTemplate.findAndModify(cas, flip,
@@ -118,34 +118,63 @@ public class RedPacketCronService {
         if (before == null)
             return null;
 
-        BigDecimal remain = before.getRemainAmount();
-        if (remain != null && remain.signum() > 0) {
-            // ② 退款。sndId 库里是 ObjectId，这里必须显式 new ObjectId(...)：
-            //    原来传的是 String，条件永远不命中，updateFirst 静默返回 0，退款一直是失效的
+        // ② 从 RedPacketRecord 统计实际已抢金额和份数
+
+
+        BigDecimal grabbedAmount = records.stream()
+            .map(RedPacketRecord::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        int grabbedCount = records.size();
+
+        // ③ 计算实际剩余
+        BigDecimal actualRemainAmount = before.getTotalAmount().subtract(grabbedAmount);
+        int actualRemainCount = before.getTotalCount() - grabbedCount;
+
+        log.info("红包过期退款: packetId={}, total={}, grabbed={}, refund={}",
+            packetId, before.getTotalAmount(), grabbedAmount, actualRemainAmount);
+
+        // ④ 退款（如果有剩余）
+        if (actualRemainAmount.compareTo(BigDecimal.ZERO) > 0) {
             ObjectId sndId = before.getSndId();
             UpdateResult refund = this.mongoTemplate.updateFirst(
                     new Query(Criteria.where("user_id").is(sndId)),
-                    new Update().inc("balance", remain), WalletInfo.class);
+                    new Update().inc("balance", actualRemainAmount), WalletInfo.class);
 
-            // ③ 检查结果。不检查的话钱没退回去也悄无声息，红包却已经被标成「已退款」
+            // 检查结果。不检查的话钱没退回去也悄无声息，红包却已经被标成「已退款」
             if (refund.getMatchedCount() != 1)
                 throw new IllegalStateException("过期红包退款失败，发送者钱包不存在 packetId="
-                        + before.getId().toHexString() + ", sndId=" + before.getSndId());
+                        + packetId + ", sndId=" + sndId);
 
-            // ④ 退款流水。没有它，用户账单里会凭空多出一笔钱
+            // ⑤ 退款流水。没有它，用户账单里会凭空多出一笔钱
             WalletFlow flow = new WalletFlow()
                     .setUserId(sndId)
-                    .setAmount(remain)
+                    .setAmount(actualRemainAmount)
                     .setInOut(WalletInOutKeys.IN)
                     .setBizType(WalletFlowBizTypeKeys.REFUND)
-                    .setBizDetailId(before.getId().toHexString())
+                    .setBizDetailId(packetId.toHexString())
                     .setRemark("红包过期退款")
                     .setTimestamp(now);
             flow.setCreatedTime(now);
             this.mongoTemplate.insert(flow);
         }
 
-        // ⑤ 消息不再更新：前端通过 UPDATE_RED_PACKET 事件同步红包状态
+        // ⑥ 更新 RedPacket 的最终快照（remain 和 claimantIds）
+        List<ObjectId> claimantIds = records.stream()
+            .map(RedPacketRecord::getUserId)
+            .collect(Collectors.toList());
+
+        this.mongoTemplate.updateFirst(
+            new Query(Criteria.where("_id").is(packetId)),
+            new Update()
+                .set("remain_amount", actualRemainAmount)
+                .set("remain_count", actualRemainCount)
+                .set("claimant_ids", claimantIds),
+            RedPacket.class);
+
+        // ⑦ 构造返回值（用于推送）
+        before.setRemainAmount(actualRemainAmount);
+        before.setRemainCount(actualRemainCount);
+        before.setClaimantIds(claimantIds);
 
         return before;
     }
@@ -157,7 +186,12 @@ public class RedPacketCronService {
 
         before.setStatus(RedPacketStatusKeys.REFUND);
         BaseMessageVO vo = new BaseMessageVO();
-        RedPacketData data = RedPacketData.toData(before);
+        Query query = new Query(Criteria.where("packet_id").is(before.getId()));
+        query.fields().include("user_id");
+        List<RedPacketRecord> records = this.mongoTemplate.find(query, RedPacketRecord.class);
+        Set<String> userId = records.stream().map(v -> { return v.getUserId().toHexString();
+        }).collect(Collectors.toSet());
+        RedPacketData data = RedPacketData.toData(before,userId);
         if (before.getBizType() == 1)
             vo = this.mongoTemplate.findById(before.getMessageId(), DefaultMessageInfo.class).toVo();
         else

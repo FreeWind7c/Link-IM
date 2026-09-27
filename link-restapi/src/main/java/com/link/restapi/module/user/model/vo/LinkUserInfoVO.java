@@ -1,6 +1,6 @@
 package com.link.restapi.module.user.model.vo;
 
-import com.link.im.entity.user.UserInfo;
+import com.link.base.entity.user.UserInfo;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -22,9 +22,12 @@ public class LinkUserInfoVO {
     private String account;
 
     private String password;
+
     private long registerTime;
 
     private long loginTime;
+
+
 
     /** 由实体组装展示 VO。映射放在 api 层，使 link-im 实体不反向依赖 VO。 */
     public static LinkUserInfoVO fromVo(UserInfo user) {

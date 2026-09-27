@@ -1,7 +1,7 @@
 package com.link.restapi.module.wallet.model.vo;
 
 import com.link.common.pager.Pager;
-import com.link.im.entity.wallet.WalletFlow;
+import com.link.base.entity.wallet.WalletFlow;
 import lombok.Data;
 import lombok.experimental.Accessors;
 

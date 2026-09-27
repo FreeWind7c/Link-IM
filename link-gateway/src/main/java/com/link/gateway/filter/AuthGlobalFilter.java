@@ -108,6 +108,13 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
         String userId = jwt.getClaim("userId").asString();
         String account = jwt.getClaim("account").asString();
         String platform = jwt.getClaim("platform").asString();
+        String expireTime = jwt.getClaim("expireTime").asString();
+        System.out.println("expireTime: " + expireTime);
+        // 检查token是否过期
+        if (expireTime != null && System.currentTimeMillis() >= Long.parseLong(expireTime)) {
+            return unauthorized(exchange, "token 已过期");
+        }
+
         if (userId == null) {
             return unauthorized(exchange, "token 缺少 userId 声明");
         }

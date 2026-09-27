@@ -1,16 +1,14 @@
 package com.link.restapi.module.message.controller;
 
-import com.link.im.dto.message.DefaultMessageDTO;
-import com.link.im.entity.message.DefaultMessageInfo;
-import com.link.im.handler.LinkDefaultMessageEventHandler;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.link.base.entity.message.DefaultMessageInfo;
+import com.link.base.template.SentinelMethodTemplate;
+import com.link.restapi.config.sentinel.SentinelBlockHandler;
 import com.link.restapi.utils.ApiResult;
 import com.link.restapi.module.message.model.dto.LinkAroundMessageDto;
 import com.link.restapi.module.message.model.dto.LinkCompleteMessageDto;
 import com.link.restapi.module.message.model.dto.LinkPullMessageDto;
 import com.link.restapi.module.message.service.LinkMessageInfoService;
-import io.netty.channel.socket.nio.NioSocketChannel;
-import org.bson.types.ObjectId;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,15 +28,12 @@ public class LinkMessageInfoController {
     private LinkMessageInfoService linkMessageInfoService;
 
 
-    @Autowired
-    private LinkDefaultMessageEventHandler handler;
-
-
-
-
-
-
     @PostMapping("/pull-message")
+    @SentinelResource(
+            value = SentinelMethodTemplate.PULL_MESSAGE,
+            blockHandlerClass = SentinelBlockHandler.class,
+            blockHandler = SentinelMethodTemplate.HANDLE
+    )
     public ApiResult pullMessage(@RequestBody LinkPullMessageDto dto)
     {
         return linkMessageInfoService.pullMessage(dto);

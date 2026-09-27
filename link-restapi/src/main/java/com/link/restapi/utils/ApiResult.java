@@ -117,8 +117,8 @@ public class ApiResult extends HashMap<String, Object> {
 	}
 
 
-	public ApiResult setToken(String token) {
-		this.put("token",token);
+	public ApiResult setToken(String key,String token) {
+		this.put(key,token);
 		return this;
 	}
 

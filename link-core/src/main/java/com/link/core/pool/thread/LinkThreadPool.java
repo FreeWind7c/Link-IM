@@ -1,8 +1,6 @@
-package com.link.pool.thread;
+package com.link.core.pool.thread;
 
 import com.link.core.config.LinkCoreConfig;
-// 注意：本类的包名是 com.link.pool.thread，而文件在 com/link/core/pool/thread/ 目录下，
-// 与同目录的 PerKeyInflightLimiter（包名 com.link.core.pool.thread）并不同包，故需显式 import。
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;

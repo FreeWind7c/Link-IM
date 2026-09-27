@@ -10,7 +10,7 @@ import com.link.restapi.enums.BaseEnum;
 public enum GlobalCode implements BaseEnum {
 
     GLOBAL_ERROR(0,"系统错误,请联系客服"),
-    PARAMETER_VALIDATOR_ERROR(1,"参数校验失败，值不正确或类型错误"), NO_PERMISSION(2, "暂无权限");
+    PARAMETER_VALIDATOR_ERROR(1,"参数校验失败，值不正确或类型错误"), NO_PERMISSION(2, "暂无权限"), TOKEN_EXPIRED(3,"token过期，请重新登录!" );
 
     private int code;
 
